@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          age: number | null
+          confidence: number
+          created_at: string
+          gender: string | null
+          id: string
+          kind: string
+          media_url: string | null
+          mode: string
+          parameters: Json
+          patient_name: string | null
+          probability: number
+          risk_level: string
+          user_id: string
+        }
+        Insert: {
+          age?: number | null
+          confidence: number
+          created_at?: string
+          gender?: string | null
+          id?: string
+          kind: string
+          media_url?: string | null
+          mode: string
+          parameters?: Json
+          patient_name?: string | null
+          probability: number
+          risk_level: string
+          user_id: string
+        }
+        Update: {
+          age?: number | null
+          confidence?: number
+          created_at?: string
+          gender?: string | null
+          id?: string
+          kind?: string
+          media_url?: string | null
+          mode?: string
+          parameters?: Json
+          patient_name?: string | null
+          probability?: number
+          risk_level?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
