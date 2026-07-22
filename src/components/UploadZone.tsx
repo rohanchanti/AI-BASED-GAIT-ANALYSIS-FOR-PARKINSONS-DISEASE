@@ -94,20 +94,6 @@ export function UploadZone({ onDetected }: Props) {
           </div>
         </div>
 
-        {detecting && (
-          <div className="mt-6 mx-auto max-w-md rounded-xl border border-primary/40 bg-primary/5 p-4 text-sm text-left">
-            <div className="flex items-center gap-2 text-cyan">
-              <Sparkles className="h-4 w-4 animate-pulse" />
-              AI detected {detecting.kind === "gait" ? "Walking Video" : "Facial Recording"}
-            </div>
-            <div className="mt-1 text-muted-foreground">
-              Loading {detecting.kind === "gait" ? "Gait" : "Facial"} Analysis pipeline…
-            </div>
-            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-              <div className="h-full w-1/2 animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-primary via-cyan to-purple" style={{ backgroundSize: "200% 100%" }} />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
