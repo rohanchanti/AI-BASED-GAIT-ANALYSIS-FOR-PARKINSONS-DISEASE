@@ -48,6 +48,7 @@ export const saveReport = createServerFn({ method: "POST" })
         parameters: {
           rows: data.parameters,
           media_name: data.media_name ?? null,
+          summary: data.summary ?? null,
         },
       })
       .select("id")
