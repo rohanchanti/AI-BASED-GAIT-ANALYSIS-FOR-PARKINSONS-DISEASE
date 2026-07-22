@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { UploadCloud, Video, ImageIcon, Sparkles } from "lucide-react";
+import { UploadCloud, Video, ImageIcon } from "lucide-react";
 
 export type MediaKind = "gait" | "facial";
 export type DetectedFile = { file: File; kind: MediaKind; previewUrl: string };
@@ -13,23 +13,15 @@ const IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
 export function UploadZone({ onDetected }: Props) {
   const [dragging, setDragging] = useState(false);
-  const [detecting, setDetecting] = useState<null | { name: string; kind: MediaKind }>(null);
 
   const handle = useCallback(
     (file: File) => {
       const isImage = IMAGE_TYPES.includes(file.type);
       const isVideo = VIDEO_TYPES.includes(file.type) || file.name.match(/\.(mp4|mov|avi)$/i);
       if (!isImage && !isVideo) return;
-
-      // Simulated AI auto-detection: images = facial; videos default to gait
-      // (a real classifier would inspect frames — mocked here).
       const kind: MediaKind = isImage ? "facial" : "gait";
       const previewUrl = URL.createObjectURL(file);
-      setDetecting({ name: file.name, kind });
-      setTimeout(() => {
-        setDetecting(null);
-        onDetected({ file, kind, previewUrl });
-      }, 1400);
+      onDetected({ file, kind, previewUrl });
     },
     [onDetected],
   );
@@ -102,20 +94,6 @@ export function UploadZone({ onDetected }: Props) {
           </div>
         </div>
 
-        {detecting && (
-          <div className="mt-6 mx-auto max-w-md rounded-xl border border-primary/40 bg-primary/5 p-4 text-sm text-left">
-            <div className="flex items-center gap-2 text-cyan">
-              <Sparkles className="h-4 w-4 animate-pulse" />
-              AI detected {detecting.kind === "gait" ? "Walking Video" : "Facial Recording"}
-            </div>
-            <div className="mt-1 text-muted-foreground">
-              Loading {detecting.kind === "gait" ? "Gait" : "Facial"} Analysis pipeline…
-            </div>
-            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/5">
-              <div className="h-full w-1/2 animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-primary via-cyan to-purple" style={{ backgroundSize: "200% 100%" }} />
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

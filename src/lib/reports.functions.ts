@@ -3,16 +3,20 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const paramRow = z.object({
+  key: z.string().optional(),
   name: z.string(),
   unit: z.string(),
   standard: z.number(),
   patient: z.number(),
   status: z.enum(["normal", "borderline", "abnormal"]),
+  range: z.tuple([z.number(), z.number()]).optional(),
+  deviationPct: z.number().optional(),
+  interpretation: z.string().optional(),
 });
 
 const saveInput = z.object({
   kind: z.enum(["gait", "facial"]),
-  mode: z.enum(["quick", "standard", "precision"]),
+  mode: z.string().max(32),
   probability: z.number().min(0).max(1),
   confidence: z.number().min(0).max(1),
   risk_level: z.string().max(32),
@@ -21,6 +25,7 @@ const saveInput = z.object({
   gender: z.string().max(32).optional(),
   parameters: z.array(paramRow).max(60),
   media_name: z.string().max(200).optional(),
+  summary: z.record(z.string(), z.any()).optional(),
 });
 
 export const saveReport = createServerFn({ method: "POST" })
@@ -43,6 +48,7 @@ export const saveReport = createServerFn({ method: "POST" })
         parameters: {
           rows: data.parameters,
           media_name: data.media_name ?? null,
+          summary: data.summary ?? null,
         },
       })
       .select("id")

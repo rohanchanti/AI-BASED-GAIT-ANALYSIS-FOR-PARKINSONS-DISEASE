@@ -1,102 +1,300 @@
 import type { MediaKind } from "@/components/UploadZone";
-import type { AnalysisMode } from "@/components/AnalysisModePicker";
+
+export type AnalysisMode =
+  | "normal"
+  | "tug"
+  | "side"
+  | "front"
+  | "multi"
+  // legacy facial modes still accepted
+  | "quick"
+  | "standard"
+  | "precision";
 
 export type ClinicalStatus = "normal" | "borderline" | "abnormal";
 
 export interface ParameterRow {
+  key: string;
   name: string;
   unit: string;
-  standard: number;
   patient: number;
+  /** [min, max] healthy reference range */
+  range: [number, number];
+  /** representative healthy value for charts */
+  standard: number;
   status: ClinicalStatus;
+  deviationPct: number;
+  interpretation: string;
+}
+
+export interface ClinicalSummary {
+  overallGaitHealth: number;    // 0..100
+  parkinsonsRisk: number;       // 0..100
+  balanceScore: number;         // 0..100
+  fallRiskScore: number;        // 0..100
+  severity: "Normal" | "Mild Parkinsonian Gait" | "Moderate Parkinsonian Gait" | "Severe Parkinsonian Gait";
+  confidence: number;           // 0..1
+  counts: { normal: number; borderline: number; abnormal: number };
+  assessments: {
+    balance: string;
+    mobility: string;
+    symmetry: string;
+    stability: string;
+    fallRisk: string;
+  };
+  recommendation: string;
 }
 
 export interface AnalysisResult {
   kind: MediaKind;
   mode: AnalysisMode;
-  probability: number; // 0..1
+  probability: number; // 0..1 (parkinsons risk)
   confidence: number;  // 0..1
-  riskLevel: "Normal" | "Low" | "Moderate" | "High" | "Very High";
+  riskLevel: "Very Low" | "Low" | "Moderate" | "High" | "Very High";
   parameters: ParameterRow[];
+  summary: ClinicalSummary;
 }
 
+/* -------------------- deterministic RNG -------------------- */
 function seeded(seed: number) {
-  let a = seed >>> 0;
+  let a = seed >>> 0 || 1;
   return () => {
     a = (a * 1664525 + 1013904223) >>> 0;
     return a / 0xffffffff;
   };
 }
-
-function classify(std: number, pt: number): ClinicalStatus {
-  const diff = Math.abs(pt - std) / std;
-  if (diff < 0.1) return "normal";
-  if (diff < 0.25) return "borderline";
-  return "abnormal";
+function hash(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
 }
 
-const GAIT_TEMPLATE: Omit<ParameterRow, "patient" | "status">[] = [
-  { name: "Cadence", unit: "steps/min", standard: 110 },
-  { name: "Walking speed", unit: "m/s", standard: 1.4 },
-  { name: "Stride length", unit: "m", standard: 1.35 },
-  { name: "Step width", unit: "cm", standard: 10 },
-  { name: "Stride time", unit: "s", standard: 1.05 },
-  { name: "Double support", unit: "% cycle", standard: 20 },
-  { name: "Arm swing", unit: "°", standard: 40 },
-  { name: "Hip angle", unit: "°", standard: 30 },
-  { name: "Knee angle", unit: "°", standard: 60 },
-  { name: "Ankle angle", unit: "°", standard: 25 },
-  { name: "Foot clearance", unit: "cm", standard: 3.5 },
-  { name: "Gait symmetry", unit: "%", standard: 96 },
+/* -------------------- clinical reference table -------------------- */
+type Def = {
+  key: string;
+  name: string;
+  unit: string;
+  range: [number, number];
+  /** direction of impairment relative to range */
+  worse: "below" | "above" | "outside";
+  interpretation: string;
+};
+
+const GAIT_DEFS: Def[] = [
+  { key: "walking_speed",  name: "Walking Speed",           unit: "m/s",        range: [1.20, 1.40], worse: "below",   interpretation: "Lower values may indicate bradykinesia or reduced mobility." },
+  { key: "cadence",        name: "Cadence",                 unit: "steps/min",  range: [100, 120],   worse: "below",   interpretation: "Reduced cadence may indicate Parkinsonian gait." },
+  { key: "step_length",    name: "Step Length",             unit: "m",          range: [0.65, 0.80], worse: "below",   interpretation: "Shortened step length is characteristic of Parkinson's." },
+  { key: "stride_length",  name: "Stride Length",           unit: "m",          range: [1.30, 1.60], worse: "below",   interpretation: "Reduced stride length suggests gait impairment." },
+  { key: "step_width",     name: "Step Width",              unit: "cm",         range: [7, 10],      worse: "outside", interpretation: "Values outside normal range may indicate balance impairment." },
+  { key: "step_time",      name: "Step Time",               unit: "s",          range: [0.50, 0.60], worse: "above",   interpretation: "Increased step time indicates slower gait." },
+  { key: "stride_time",    name: "Stride Time",             unit: "s",          range: [1.00, 1.20], worse: "above",   interpretation: "Longer stride time reflects slower walking." },
+  { key: "gait_cycle",     name: "Gait Cycle Duration",     unit: "s",          range: [1.00, 1.20], worse: "above",   interpretation: "Longer gait cycles indicate reduced walking speed." },
+  { key: "stance_phase",   name: "Stance Phase",            unit: "%",          range: [58, 62],     worse: "above",   interpretation: "Higher stance percentage indicates cautious gait." },
+  { key: "swing_phase",    name: "Swing Phase",             unit: "%",          range: [38, 42],     worse: "below",   interpretation: "Reduced swing phase is associated with Parkinsonian gait." },
+  { key: "double_support", name: "Double Support Time",     unit: "%",          range: [20, 24],     worse: "above",   interpretation: "Higher values indicate instability and fall risk." },
+  { key: "single_support", name: "Single Support Time",     unit: "%",          range: [38, 40],     worse: "below",   interpretation: "Reduced single support may indicate poor balance." },
+  { key: "arm_swing_sym",  name: "Arm Swing Symmetry",      unit: "%",          range: [95, 100],    worse: "below",   interpretation: "Reduced symmetry is an early Parkinsonian sign." },
+  { key: "walking_sym",    name: "Walking Symmetry Index",  unit: "%",          range: [95, 100],    worse: "below",   interpretation: "Lower symmetry indicates asymmetric gait." },
+  { key: "stability",      name: "Gait Stability Index",    unit: "%",          range: [90, 100],    worse: "below",   interpretation: "Lower scores indicate unstable gait." },
+  { key: "turning_time",   name: "Turning Time (180°)",     unit: "s",          range: [2, 3],       worse: "above",   interpretation: "Longer turning time indicates impaired motor control." },
+  { key: "tug",            name: "Timed Up and Go (TUG)",   unit: "s",          range: [0, 10],      worse: "above",   interpretation: "<10s Normal; 10–13.5s Mild; >13.5s Increased fall risk." },
 ];
 
-const FACE_TEMPLATE: Omit<ParameterRow, "patient" | "status">[] = [
-  { name: "Blink rate", unit: "blinks/min", standard: 17 },
-  { name: "Facial symmetry", unit: "%", standard: 95 },
-  { name: "Head tremor", unit: "Hz", standard: 0 },
-  { name: "Smile asymmetry", unit: "%", standard: 4 },
-  { name: "Jaw movement", unit: "mm", standard: 8 },
-  { name: "Eye closure ratio", unit: "%", standard: 22 },
-  { name: "Emotion stability", unit: "%", standard: 88 },
-  { name: "Micro-expressions", unit: "/min", standard: 6 },
+/* -------------------- status + deviation -------------------- */
+function classify(def: Def, patient: number): { status: ClinicalStatus; deviationPct: number } {
+  const [lo, hi] = def.range;
+  const mid = (lo + hi) / 2 || 1;
+  const deviationPct = ((patient - mid) / (Math.abs(mid) || 1)) * 100;
+
+  const span = hi - lo || Math.abs(mid) * 0.1;
+  const borderPad = Math.max(span * 0.5, Math.abs(mid) * 0.1);
+  const abnormalPad = Math.max(span * 1.5, Math.abs(mid) * 0.25);
+
+  const inRange = patient >= lo && patient <= hi;
+  if (inRange) return { status: "normal", deviationPct };
+
+  if (def.worse === "below") {
+    if (patient >= lo - borderPad) return { status: "borderline", deviationPct };
+    if (patient >= lo - abnormalPad) return { status: "borderline", deviationPct };
+    return { status: "abnormal", deviationPct };
+  }
+  if (def.worse === "above") {
+    if (patient <= hi + borderPad) return { status: "borderline", deviationPct };
+    if (patient <= hi + abnormalPad) return { status: "borderline", deviationPct };
+    return { status: "abnormal", deviationPct };
+  }
+  // outside
+  const dist = patient < lo ? lo - patient : patient - hi;
+  if (dist <= borderPad) return { status: "borderline", deviationPct };
+  if (dist <= abnormalPad) return { status: "borderline", deviationPct };
+  return { status: "abnormal", deviationPct };
+}
+
+/* -------------------- facial fallback (kept from previous) -------------------- */
+const FACE_DEFS: Def[] = [
+  { key: "blink_rate",       name: "Blink rate",         unit: "blinks/min", range: [15, 20], worse: "below",  interpretation: "Reduced blink rate is a Parkinsonian feature." },
+  { key: "facial_symmetry",  name: "Facial symmetry",    unit: "%",          range: [93, 100], worse: "below", interpretation: "Asymmetry may indicate hemi-parkinsonism." },
+  { key: "head_tremor",      name: "Head tremor",        unit: "Hz",         range: [0, 1],   worse: "above",  interpretation: "Tremor >4 Hz is clinically significant." },
+  { key: "smile_asymmetry",  name: "Smile asymmetry",    unit: "%",          range: [0, 6],   worse: "above",  interpretation: "Asymmetry may indicate facial masking." },
+  { key: "jaw_movement",     name: "Jaw movement",       unit: "mm",         range: [7, 10],  worse: "below",  interpretation: "Reduced range suggests hypomimia." },
+  { key: "eye_closure",      name: "Eye closure ratio",  unit: "%",          range: [20, 25], worse: "outside",interpretation: "Deviation may indicate eyelid dysfunction." },
+  { key: "emotion_stability",name: "Emotion stability",  unit: "%",          range: [85, 95], worse: "below",  interpretation: "Reduced expression range = masked facies." },
+  { key: "micro_expr",       name: "Micro-expressions",  unit: "/min",       range: [5, 8],   worse: "below",  interpretation: "Reduced micro-expressions indicate hypomimia." },
 ];
 
+/* -------------------- main generator -------------------- */
 export function generateMockAnalysis(
   kind: MediaKind,
   mode: AnalysisMode,
   fileNameSeed = "seed",
 ): AnalysisResult {
-  let seed = 0;
-  for (let i = 0; i < fileNameSeed.length; i++) seed = (seed * 31 + fileNameSeed.charCodeAt(i)) >>> 0;
-  const rand = seeded(seed || 1);
+  const rand = seeded(hash(fileNameSeed));
+  const defs = kind === "gait" ? GAIT_DEFS : FACE_DEFS;
 
-  const template = kind === "gait" ? GAIT_TEMPLATE : FACE_TEMPLATE;
-  const deviation = mode === "precision" ? 0.35 : mode === "standard" ? 0.3 : 0.25;
+  // deviation intensity varies per mode
+  const intensity =
+    mode === "tug" ? 0.28 :
+    mode === "multi" || mode === "precision" ? 0.32 :
+    mode === "side" || mode === "front" || mode === "standard" ? 0.26 :
+    /* normal / quick */ 0.22;
 
-  const parameters: ParameterRow[] = template.map((p) => {
-    const drift = (rand() - 0.35) * deviation;
-    const patient = Math.max(0, +(p.standard * (1 + drift)).toFixed(2));
-    return { ...p, patient, status: classify(p.standard || 1, patient || 0.0001) };
+  const parameters: ParameterRow[] = defs.map((d) => {
+    const [lo, hi] = d.range;
+    const mid = (lo + hi) / 2;
+    const span = (hi - lo) || Math.abs(mid) * 0.2 || 1;
+
+    // biased drift so ~half the params trend toward impairment
+    const bias = (rand() - 0.35) * 2; // -0.7 .. +1.3
+    let drift = bias * intensity;
+    // apply direction of impairment
+    let patient = mid;
+    if (d.worse === "below") patient = mid - Math.abs(drift) * span * (rand() > 0.55 ? 1 : 0.3);
+    else if (d.worse === "above") patient = mid + Math.abs(drift) * span * (rand() > 0.55 ? 1 : 0.3);
+    else patient = mid + drift * span * 0.8;
+
+    // guardrails
+    if (d.key === "head_tremor" && patient < 0) patient = 0;
+    if (d.key === "tug") patient = Math.max(6, patient + (rand() > 0.7 ? 4 * rand() : 0));
+
+    patient = Math.max(0, +patient.toFixed(3));
+    const { status, deviationPct } = classify(d, patient);
+
+    return {
+      key: d.key,
+      name: d.name,
+      unit: d.unit,
+      patient,
+      range: d.range,
+      standard: +mid.toFixed(3),
+      status,
+      deviationPct: +deviationPct.toFixed(1),
+      interpretation: d.interpretation,
+    };
   });
 
-  const abnormal = parameters.filter((p) => p.status === "abnormal").length;
-  const borderline = parameters.filter((p) => p.status === "borderline").length;
-  const probability = Math.min(
-    0.97,
-    Math.max(0.05, (abnormal * 0.11 + borderline * 0.05 + rand() * 0.08)),
+  const counts = {
+    normal: parameters.filter((p) => p.status === "normal").length,
+    borderline: parameters.filter((p) => p.status === "borderline").length,
+    abnormal: parameters.filter((p) => p.status === "abnormal").length,
+  };
+
+  // scores
+  const total = parameters.length;
+  const overallGaitHealth = Math.round(
+    (counts.normal * 100 + counts.borderline * 65 + counts.abnormal * 25) / total,
   );
-  const confidence = 0.78 + rand() * 0.2;
+
+  const parkinsonsRisk = Math.min(
+    98,
+    Math.round(counts.abnormal * (100 / total) * 1.6 + counts.borderline * (100 / total) * 0.6),
+  );
+
+  const balanceKeys = new Set(["step_width", "double_support", "single_support", "stability", "turning_time"]);
+  const balanceParams = parameters.filter((p) => balanceKeys.has(p.key));
+  const balanceScore = balanceParams.length
+    ? Math.round(
+        balanceParams.reduce(
+          (acc, p) => acc + (p.status === "normal" ? 100 : p.status === "borderline" ? 65 : 25),
+          0,
+        ) / balanceParams.length,
+      )
+    : overallGaitHealth;
+
+  const fallRiskScore = Math.min(
+    98,
+    Math.max(
+      2,
+      Math.round(
+        100 - balanceScore * 0.6 - (100 - parkinsonsRisk) * 0.2,
+      ),
+    ),
+  );
+
+  const severity: ClinicalSummary["severity"] =
+    parkinsonsRisk < 20 ? "Normal" :
+    parkinsonsRisk < 45 ? "Mild Parkinsonian Gait" :
+    parkinsonsRisk < 70 ? "Moderate Parkinsonian Gait" :
+    "Severe Parkinsonian Gait";
 
   const riskLevel: AnalysisResult["riskLevel"] =
-    probability < 0.15
-      ? "Normal"
-      : probability < 0.35
-      ? "Low"
-      : probability < 0.6
-      ? "Moderate"
-      : probability < 0.8
-      ? "High"
-      : "Very High";
+    parkinsonsRisk < 20 ? "Very Low" :
+    parkinsonsRisk < 40 ? "Low" :
+    parkinsonsRisk < 60 ? "Moderate" :
+    parkinsonsRisk < 80 ? "High" : "Very High";
 
-  return { kind, mode, probability, confidence, riskLevel, parameters };
+  const confidence = 0.86 + rand() * 0.12;
+
+  const assess = (score: number, good: string, mid: string, bad: string) =>
+    score >= 80 ? good : score >= 55 ? mid : bad;
+
+  const summary: ClinicalSummary = {
+    overallGaitHealth,
+    parkinsonsRisk,
+    balanceScore,
+    fallRiskScore,
+    severity,
+    confidence,
+    counts,
+    assessments: {
+      balance: assess(balanceScore, "Balance within healthy range", "Mild balance impairment detected", "Significant balance impairment"),
+      mobility: assess(overallGaitHealth, "Mobility preserved", "Mildly reduced mobility", "Markedly reduced mobility"),
+      symmetry: assess(
+        parameters.find((p) => p.key === "walking_sym")?.status === "normal" ? 100 :
+        parameters.find((p) => p.key === "walking_sym")?.status === "borderline" ? 60 : 25,
+        "Gait symmetry preserved",
+        "Mild gait asymmetry",
+        "Marked gait asymmetry",
+      ),
+      stability: assess(
+        parameters.find((p) => p.key === "stability")?.status === "normal" ? 100 :
+        parameters.find((p) => p.key === "stability")?.status === "borderline" ? 60 : 25,
+        "Stable gait pattern",
+        "Reduced gait stability",
+        "Unstable gait pattern",
+      ),
+      fallRisk:
+        fallRiskScore <= 20 ? "Low fall risk" :
+        fallRiskScore <= 40 ? "Mild fall risk" :
+        fallRiskScore <= 60 ? "Moderate fall risk" :
+        fallRiskScore <= 80 ? "High fall risk" : "Very high fall risk",
+    },
+    recommendation:
+      severity === "Normal"
+        ? "No significant gait abnormalities detected. Routine follow-up as clinically indicated."
+        : severity === "Mild Parkinsonian Gait"
+        ? "Consider neurological evaluation and baseline gait monitoring. Encourage regular physical activity."
+        : severity === "Moderate Parkinsonian Gait"
+        ? "Neurological consultation recommended. Consider physiotherapy referral and fall-prevention strategies."
+        : "Urgent neurological review recommended. Initiate multidisciplinary care including neurology, physiotherapy, and fall-risk management.",
+  };
+
+  return {
+    kind,
+    mode,
+    probability: parkinsonsRisk / 100,
+    confidence,
+    riskLevel,
+    parameters,
+    summary,
+  };
 }
