@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { UploadCloud, Video, ImageIcon, Sparkles } from "lucide-react";
+import { UploadCloud, Video, ImageIcon } from "lucide-react";
 
 export type MediaKind = "gait" | "facial";
 export type DetectedFile = { file: File; kind: MediaKind; previewUrl: string };
@@ -13,23 +13,15 @@ const IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
 export function UploadZone({ onDetected }: Props) {
   const [dragging, setDragging] = useState(false);
-  const [detecting, setDetecting] = useState<null | { name: string; kind: MediaKind }>(null);
 
   const handle = useCallback(
     (file: File) => {
       const isImage = IMAGE_TYPES.includes(file.type);
       const isVideo = VIDEO_TYPES.includes(file.type) || file.name.match(/\.(mp4|mov|avi)$/i);
       if (!isImage && !isVideo) return;
-
-      // Simulated AI auto-detection: images = facial; videos default to gait
-      // (a real classifier would inspect frames — mocked here).
       const kind: MediaKind = isImage ? "facial" : "gait";
       const previewUrl = URL.createObjectURL(file);
-      setDetecting({ name: file.name, kind });
-      setTimeout(() => {
-        setDetecting(null);
-        onDetected({ file, kind, previewUrl });
-      }, 1400);
+      onDetected({ file, kind, previewUrl });
     },
     [onDetected],
   );
