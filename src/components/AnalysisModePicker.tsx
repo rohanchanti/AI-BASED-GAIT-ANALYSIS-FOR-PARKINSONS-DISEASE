@@ -1,38 +1,62 @@
-import { Zap, Rocket, Microscope, Check } from "lucide-react";
+import { Footprints, Timer, Camera, Video, Layers } from "lucide-react";
 
-export type AnalysisMode = "quick" | "standard" | "precision";
+export type AnalysisMode =
+  | "normal"
+  | "tug"
+  | "side"
+  | "front"
+  | "multi"
+  | "quick"
+  | "standard"
+  | "precision";
 
 const modes: {
   id: AnalysisMode;
-  icon: typeof Zap;
+  icon: typeof Footprints;
   title: string;
   time: string;
-  bullets: string[];
+  desc: string;
   accent: string;
 }[] = [
   {
-    id: "quick",
-    icon: Zap,
-    title: "Quick Analysis",
-    time: "≈ 1 minute",
-    bullets: ["Every 20th frame", "Fast pose estimation", "Basic parameters", "Instant screening"],
+    id: "normal",
+    icon: Footprints,
+    title: "Normal Walking Test",
+    time: "≈ 1 min",
+    desc: "Standard steady-state gait assessment.",
     accent: "cyan",
   },
   {
-    id: "standard",
-    icon: Rocket,
-    title: "Standard Analysis",
-    time: "≈ 5 minutes",
-    bullets: ["5-frame windows", "Improved pose tracking", "Clinical comparison", "Balanced accuracy"],
+    id: "tug",
+    icon: Timer,
+    title: "Timed Up and Go (TUG)",
+    time: "≈ 1 min",
+    desc: "Chair-rise, walk, turn, return — fall-risk screen.",
     accent: "primary",
   },
   {
-    id: "precision",
-    icon: Microscope,
-    title: "Precision Analysis",
-    time: "≈ 10 minutes",
-    bullets: ["Frame-by-frame", "Noise removal & filtering", "Joint refinement", "Research-grade report"],
+    id: "side",
+    icon: Camera,
+    title: "Side View Analysis",
+    time: "≈ 2 min",
+    desc: "Sagittal-plane joint kinematics.",
     accent: "purple",
+  },
+  {
+    id: "front",
+    icon: Video,
+    title: "Front View Analysis",
+    time: "≈ 2 min",
+    desc: "Coronal-plane symmetry & step width.",
+    accent: "cyan",
+  },
+  {
+    id: "multi",
+    icon: Layers,
+    title: "Multi-Angle Analysis",
+    time: "≈ 3 min",
+    desc: "Highest precision — fuses all planes.",
+    accent: "primary",
   },
 ];
 
@@ -44,15 +68,15 @@ interface Props {
 export function AnalysisModePicker({ onSelect, onCancel }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/70 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-5xl rounded-3xl glass gradient-border p-6 sm:p-8">
+      <div className="relative w-full max-w-5xl rounded-3xl glass gradient-border p-6 sm:p-8 max-h-[90vh] overflow-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-cyan">Choose analysis mode</div>
             <h2 className="mt-1 font-display text-2xl sm:text-3xl font-semibold">
-              How deep should the AI go?
+              Select clinical gait protocol
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              You can rerun with a different mode at any time from Reports.
+              Each mode adapts calculations to the recording setup.
             </p>
           </div>
           {onCancel && (
@@ -65,7 +89,7 @@ export function AnalysisModePicker({ onSelect, onCancel }: Props) {
           )}
         </div>
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {modes.map((m) => {
             const Icon = m.icon;
             return (
@@ -79,15 +103,8 @@ export function AnalysisModePicker({ onSelect, onCancel }: Props) {
                 </div>
                 <div className="mt-4 font-display text-lg font-semibold">{m.title}</div>
                 <div className="text-xs text-muted-foreground">{m.time}</div>
-                <ul className="mt-4 space-y-2">
-                  {m.bullets.map((b) => (
-                    <li key={b} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <Check className="h-4 w-4 mt-0.5 text-success shrink-0" />
-                      <span>{b}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-5 inline-flex items-center gap-1 text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition">
+                <p className="mt-3 text-sm text-muted-foreground">{m.desc}</p>
+                <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition">
                   Start →
                 </div>
               </button>
