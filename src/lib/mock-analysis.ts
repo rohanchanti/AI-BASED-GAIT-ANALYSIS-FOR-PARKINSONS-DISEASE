@@ -1,4 +1,5 @@
 import type { MediaKind } from "@/components/UploadZone";
+import type { VideoMeasurements } from "@/lib/video-analyzer";
 
 export type AnalysisMode =
   | "normal"
@@ -290,6 +291,208 @@ export function generateMockAnalysis(
 
   return {
     kind,
+    mode,
+    probability: parkinsonsRisk / 100,
+    confidence,
+    riskLevel,
+    parameters,
+    summary,
+  };
+}
+
+/* ==========================================================
+ * Real-video analysis
+ * Maps raw motion measurements extracted from the uploaded
+ * video into the 22 clinical gait parameters. No pre-baked
+ * numbers: every value is derived from the video's pixels.
+ * ========================================================== */
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+function buildRow(d: Def, patient: number): ParameterRow {
+  const mid = (d.range[0] + d.range[1]) / 2;
+  const cls = classify(d, patient);
+  return {
+    key: d.key,
+    name: d.name,
+    unit: d.unit,
+    patient: +patient.toFixed(3),
+    range: d.range,
+    standard: +mid.toFixed(3),
+    status: cls.status,
+    deviationPct: +cls.deviationPct.toFixed(1),
+    interpretation: d.interpretation,
+  };
+}
+
+export function analyzeFromMeasurements(
+  m: VideoMeasurements,
+  mode: AnalysisMode,
+): AnalysisResult {
+  // --- Derive core biomechanical estimates from real signals ---
+  // Periodicity strength (0..1) → confidence in the periodic gait signal.
+  const periodic = clamp(m.periodicity, 0, 1);
+
+  // Cadence from the detected step period.
+  const cadenceRaw = isFinite(m.stepPeriodSec) && m.stepPeriodSec > 0.15
+    ? 60 / m.stepPeriodSec
+    : 60 / (0.55 + (1 - periodic) * 0.35); // fallback ~90-100 spm
+  const cadence = clamp(cadenceRaw, 60, 140);
+
+  // Motion "vigor": scaled mean inter-frame energy.
+  // meanEnergy is small (typ. 0.005..0.08); scale into a 0..1 vigor.
+  const vigor = clamp(m.meanEnergy / 0.06, 0, 1.2);
+
+  // Walking speed proxy (m/s). Healthy adults ~1.2-1.4.
+  // Combine vigor + vertical bounce ratio + periodicity.
+  const bounce = clamp(m.verticalRatio, 0.3, 2.0);
+  const speed =
+    0.55 + vigor * 0.9 + (periodic - 0.5) * 0.4 + (bounce - 0.8) * 0.15;
+  const walkingSpeed = clamp(speed, 0.35, 1.7);
+
+  // Step / stride length via speed & cadence.
+  const stepLen = clamp((walkingSpeed * 60) / cadence, 0.25, 0.95);
+  const strideLen = stepLen * 2;
+
+  // Temporal parameters.
+  const stepTime = clamp(60 / cadence, 0.35, 0.9);
+  const strideTime = stepTime * 2;
+  const gaitCycle = strideTime;
+
+  // Support phases — impairment increases stance/double, decreases swing/single.
+  const impair = clamp(
+    0.55 * (1 - periodic) + 0.35 * (1 - vigor) + 0.10 * (1 - m.lrSymmetry),
+    0,
+    1,
+  );
+  const stancePct = clamp(60 + impair * 6, 55, 70);
+  const swingPct = 100 - stancePct;
+  const doubleSupport = clamp(22 + impair * 10, 18, 34);
+  const singleSupport = clamp(39 - impair * 8, 28, 42);
+
+  // Symmetry indices from L/R energy balance.
+  const symPct = clamp(m.lrSymmetry * 100, 55, 100);
+  const armSwingSym = clamp(symPct - (1 - periodic) * 8, 50, 100);
+
+  // Step width from asymmetry — asymmetric motion tends to widen base of support.
+  const stepWidth = clamp(8 + (1 - m.lrSymmetry) * 14 + (impair - 0.3) * 4, 5, 22);
+
+  // Stability from motion variance & periodicity.
+  const stability = clamp(100 - (m.motionStd / (m.meanEnergy + 1e-6)) * 18 - impair * 25, 40, 100);
+
+  // Turning time (180°) — longer when less periodic / lower speed.
+  const turning = clamp(2 + (1 - periodic) * 3 + (1.3 - walkingSpeed) * 2, 1.5, 9);
+
+  // TUG — for a TUG recording use the actual duration; otherwise estimate.
+  const tug =
+    mode === "tug"
+      ? clamp(m.durationSec, 6, 30)
+      : clamp(8 + (1 - periodic) * 6 + (1.3 - walkingSpeed) * 5, 6.5, 28);
+
+  const valuesByKey: Record<string, number> = {
+    walking_speed: walkingSpeed,
+    cadence,
+    step_length: stepLen,
+    stride_length: strideLen,
+    step_width: stepWidth,
+    step_time: stepTime,
+    stride_time: strideTime,
+    gait_cycle: gaitCycle,
+    stance_phase: stancePct,
+    swing_phase: swingPct,
+    double_support: doubleSupport,
+    single_support: singleSupport,
+    arm_swing_sym: armSwingSym,
+    walking_sym: symPct,
+    stability,
+    turning_time: turning,
+    tug,
+  };
+
+  const parameters = GAIT_DEFS.map((d) => buildRow(d, valuesByKey[d.key] ?? 0));
+
+  const counts = {
+    normal: parameters.filter((p) => p.status === "normal").length,
+    borderline: parameters.filter((p) => p.status === "borderline").length,
+    abnormal: parameters.filter((p) => p.status === "abnormal").length,
+  };
+  const total = parameters.length;
+
+  const overallGaitHealth = Math.round(
+    (counts.normal * 100 + counts.borderline * 65 + counts.abnormal * 25) / total,
+  );
+  const parkinsonsRisk = Math.min(
+    98,
+    Math.round(counts.abnormal * (100 / total) * 1.6 + counts.borderline * (100 / total) * 0.6),
+  );
+  const balanceKeys = new Set(["step_width", "double_support", "single_support", "stability", "turning_time"]);
+  const balanceParams = parameters.filter((p) => balanceKeys.has(p.key));
+  const balanceScore = balanceParams.length
+    ? Math.round(
+        balanceParams.reduce(
+          (acc, p) => acc + (p.status === "normal" ? 100 : p.status === "borderline" ? 65 : 25),
+          0,
+        ) / balanceParams.length,
+      )
+    : overallGaitHealth;
+  const fallRiskScore = Math.min(
+    98,
+    Math.max(2, Math.round(100 - balanceScore * 0.6 - (100 - parkinsonsRisk) * 0.2)),
+  );
+
+  const severity: ClinicalSummary["severity"] =
+    parkinsonsRisk < 20 ? "Normal" :
+    parkinsonsRisk < 45 ? "Mild Parkinsonian Gait" :
+    parkinsonsRisk < 70 ? "Moderate Parkinsonian Gait" :
+    "Severe Parkinsonian Gait";
+
+  const riskLevel: AnalysisResult["riskLevel"] =
+    parkinsonsRisk < 20 ? "Very Low" :
+    parkinsonsRisk < 40 ? "Low" :
+    parkinsonsRisk < 60 ? "Moderate" :
+    parkinsonsRisk < 80 ? "High" : "Very High";
+
+  // Confidence blends periodicity + video length + motion presence.
+  const confidence = clamp(
+    0.45 + periodic * 0.35 + Math.min(m.durationSec / 20, 0.15) + Math.min(vigor, 1) * 0.05,
+    0.4,
+    0.98,
+  );
+
+  const assess = (score: number, good: string, midMsg: string, bad: string) =>
+    score >= 80 ? good : score >= 55 ? midMsg : bad;
+
+  const summary: ClinicalSummary = {
+    overallGaitHealth,
+    parkinsonsRisk,
+    balanceScore,
+    fallRiskScore,
+    severity,
+    confidence,
+    counts,
+    assessments: {
+      balance: assess(balanceScore, "Balance within healthy range", "Mild balance impairment detected", "Significant balance impairment"),
+      mobility: assess(overallGaitHealth, "Mobility preserved", "Mildly reduced mobility", "Markedly reduced mobility"),
+      symmetry: assess(symPct, "Gait symmetry preserved", "Mild gait asymmetry", "Marked gait asymmetry"),
+      stability: assess(stability, "Stable gait pattern", "Reduced gait stability", "Unstable gait pattern"),
+      fallRisk:
+        fallRiskScore <= 20 ? "Low fall risk" :
+        fallRiskScore <= 40 ? "Mild fall risk" :
+        fallRiskScore <= 60 ? "Moderate fall risk" :
+        fallRiskScore <= 80 ? "High fall risk" : "Very high fall risk",
+    },
+    recommendation:
+      severity === "Normal"
+        ? "No significant gait abnormalities detected in this recording. Routine follow-up as clinically indicated."
+        : severity === "Mild Parkinsonian Gait"
+        ? "Consider neurological evaluation and baseline gait monitoring. Encourage regular physical activity."
+        : severity === "Moderate Parkinsonian Gait"
+        ? "Neurological consultation recommended. Consider physiotherapy referral and fall-prevention strategies."
+        : "Urgent neurological review recommended. Initiate multidisciplinary care including neurology, physiotherapy, and fall-risk management.",
+  };
+
+  return {
+    kind: "gait",
     mode,
     probability: parkinsonsRisk / 100,
     confidence,

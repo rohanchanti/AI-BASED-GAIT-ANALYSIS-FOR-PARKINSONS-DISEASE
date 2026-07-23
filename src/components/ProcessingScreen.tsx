@@ -1,23 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MediaKind } from "./UploadZone";
 import type { AnalysisMode } from "./AnalysisModePicker";
 import { Activity } from "lucide-react";
-
-const DURATION: Record<AnalysisMode, number> = {
-  normal: 6000,
-  tug: 6000,
-  side: 8000,
-  front: 8000,
-  multi: 11000,
-  quick: 5000,
-  standard: 8000,
-  precision: 11000,
-};
+import { analyzeVideoFile } from "@/lib/video-analyzer";
+import {
+  analyzeFromMeasurements,
+  generateMockAnalysis,
+  type AnalysisResult,
+} from "@/lib/mock-analysis";
 
 interface Props {
   kind: MediaKind;
   mode: AnalysisMode;
-  onComplete: () => void;
+  file: File;
+  onComplete: (result: AnalysisResult) => void;
+  onError?: (message: string) => void;
 }
 
 const LABEL: Record<AnalysisMode, string> = {
@@ -31,16 +28,16 @@ const LABEL: Record<AnalysisMode, string> = {
   precision: "Precision Analysis",
 };
 
-export function ProcessingScreen({ kind, mode, onComplete }: Props) {
+export function ProcessingScreen({ kind, mode, file, onComplete, onError }: Props) {
   const [uploadPct, setUploadPct] = useState(0);
   const [analysisPct, setAnalysisPct] = useState(0);
   const [phase, setPhase] = useState<"upload" | "analyze" | "done">("upload");
-  const duration = DURATION[mode] ?? 8000;
+  const startedRef = useRef(false);
 
-  // simulated upload
+  // Simulated upload phase (real local file — brief indicator only).
   useEffect(() => {
     const start = performance.now();
-    const dur = 1600;
+    const dur = 1200;
     let raf = 0;
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / dur);
@@ -52,23 +49,50 @@ export function ProcessingScreen({ kind, mode, onComplete }: Props) {
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  // analysis progress (silent)
+  // Real analysis phase — pixel-level video processing.
   useEffect(() => {
-    if (phase !== "analyze") return;
-    const start = performance.now();
-    let raf = 0;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / duration);
-      setAnalysisPct(p);
-      if (p < 1) raf = requestAnimationFrame(tick);
-      else {
+    if (phase !== "analyze" || startedRef.current) return;
+    startedRef.current = true;
+    let cancelled = false;
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        let result: AnalysisResult;
+        if (kind === "gait") {
+          const measurements = await analyzeVideoFile(
+            file,
+            (p) => {
+              if (!cancelled) setAnalysisPct(p);
+            },
+            controller.signal,
+          );
+          result = analyzeFromMeasurements(measurements, mode);
+        } else {
+          // Facial single-image path — retain seeded model.
+          for (let i = 0; i <= 20; i++) {
+            if (cancelled) return;
+            setAnalysisPct(i / 20);
+            await new Promise((r) => setTimeout(r, 60));
+          }
+          result = generateMockAnalysis("facial", mode, file.name);
+        }
+        if (cancelled) return;
+        setAnalysisPct(1);
         setPhase("done");
-        setTimeout(onComplete, 500);
+        setTimeout(() => onComplete(result), 400);
+      } catch (err) {
+        if (cancelled) return;
+        const msg = err instanceof Error ? err.message : "Analysis failed";
+        onError?.(msg);
       }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [phase, duration, onComplete]);
+  }, [phase, file, kind, mode, onComplete, onError]);
 
   const pct = phase === "upload" ? uploadPct : analysisPct;
   const label =
