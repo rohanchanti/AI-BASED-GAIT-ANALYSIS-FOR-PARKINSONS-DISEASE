@@ -5,7 +5,7 @@ import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
 import { ProcessingScreen } from "@/components/ProcessingScreen";
-import { generateMockAnalysis } from "@/lib/mock-analysis";
+import type { AnalysisResult } from "@/lib/mock-analysis";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
@@ -30,9 +30,8 @@ function LandingPage() {
     setStage("processing");
   }
 
-  function onComplete() {
-    if (!detected || !mode) return;
-    const result = generateMockAnalysis(detected.kind, mode, detected.file.name);
+  function onComplete(result: AnalysisResult) {
+    if (!detected) return;
     sessionStorage.setItem(
       "latestResult",
       JSON.stringify({
@@ -45,6 +44,13 @@ function LandingPage() {
     setStage("done");
     toast.success("Analysis complete", { description: "Sign in to save & view the full dashboard." });
     navigate({ to: "/dashboard" });
+  }
+
+  function onAnalysisError(message: string) {
+    toast.error("Analysis failed", { description: message });
+    setStage("idle");
+    setDetected(null);
+    setMode(null);
   }
 
   return (
@@ -159,7 +165,13 @@ function LandingPage() {
         />
       )}
       {stage === "processing" && detected && mode && (
-        <ProcessingScreen kind={detected.kind} mode={mode} onComplete={onComplete} />
+        <ProcessingScreen
+          kind={detected.kind}
+          mode={mode}
+          file={detected.file}
+          onComplete={onComplete}
+          onError={onAnalysisError}
+        />
       )}
     </>
   );
