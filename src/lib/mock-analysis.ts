@@ -1,4 +1,5 @@
 import type { MediaKind } from "@/components/UploadZone";
+import type { VideoMeasurements } from "@/lib/video-analyzer";
 
 export type AnalysisMode =
   | "normal"
