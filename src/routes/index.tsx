@@ -5,6 +5,7 @@ import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
 import { ProcessingScreen } from "@/components/ProcessingScreen";
+import { PatientForm, type PatientInfo } from "@/components/PatientForm";
 import type { AnalysisResult } from "@/lib/mock-analysis";
 import { toast } from "sonner";
 
@@ -12,16 +13,22 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-type Stage = "idle" | "mode" | "processing" | "done";
+type Stage = "idle" | "patient" | "mode" | "processing" | "done";
 
 function LandingPage() {
   const [detected, setDetected] = useState<DetectedFile | null>(null);
+  const [patient, setPatient] = useState<PatientInfo | null>(null);
   const [mode, setMode] = useState<AnalysisMode | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
   const navigate = useNavigate();
 
   function onDetected(d: DetectedFile) {
     setDetected(d);
+    setStage("patient");
+  }
+
+  function onPatientSubmit(p: PatientInfo) {
+    setPatient(p);
     setStage("mode");
   }
 
@@ -36,7 +43,10 @@ function LandingPage() {
       "latestResult",
       JSON.stringify({
         result,
-        patient_name: "",
+        patient_name: patient?.name ?? "",
+        patient_id: patient?.patientId ?? "",
+        patient_age: patient?.age ?? "",
+        patient_gender: patient?.gender ?? "",
         media_kind: detected.kind,
         media_name: detected.file.name,
       }),
@@ -50,6 +60,7 @@ function LandingPage() {
     toast.error("Analysis failed", { description: message });
     setStage("idle");
     setDetected(null);
+    setPatient(null);
     setMode(null);
   }
 
@@ -155,11 +166,21 @@ function LandingPage() {
         </div>
       </section>
 
+      {stage === "patient" && (
+        <PatientForm
+          onSubmit={onPatientSubmit}
+          onCancel={() => {
+            setDetected(null);
+            setStage("idle");
+          }}
+        />
+      )}
       {stage === "mode" && (
         <AnalysisModePicker
           onSelect={onPickMode}
           onCancel={() => {
             setDetected(null);
+            setPatient(null);
             setStage("idle");
           }}
         />

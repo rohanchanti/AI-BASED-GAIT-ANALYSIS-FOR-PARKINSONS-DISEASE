@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Brain, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
+import logoSymbol from "@/assets/logo-symbol.png";
 import { supabase } from "@/integrations/supabase/client";
 
 const links = [
@@ -42,8 +43,8 @@ export function SiteNav() {
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Link to="/" className="flex items-center gap-2 group">
-          <div className="relative h-9 w-9 rounded-lg gradient-border glass grid place-items-center">
-            <Brain className="h-5 w-5 text-cyan" />
+          <div className="relative h-10 w-10 rounded-xl grid place-items-center overflow-hidden">
+            <img src={logoSymbol} alt="NeuroStride emblem" className="h-10 w-10 object-contain drop-shadow-[0_0_10px_rgba(56,189,248,0.35)]" />
           </div>
           <div className="leading-tight">
             <div className="font-display text-base font-semibold tracking-tight">
