@@ -166,11 +166,21 @@ function LandingPage() {
         </div>
       </section>
 
+      {stage === "patient" && (
+        <PatientForm
+          onSubmit={onPatientSubmit}
+          onCancel={() => {
+            setDetected(null);
+            setStage("idle");
+          }}
+        />
+      )}
       {stage === "mode" && (
         <AnalysisModePicker
           onSelect={onPickMode}
           onCancel={() => {
             setDetected(null);
+            setPatient(null);
             setStage("idle");
           }}
         />
