@@ -24,6 +24,9 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 type Stored = {
   result: AnalysisResult;
   patient_name: string;
+  patient_id?: string;
+  patient_age?: string;
+  patient_gender?: string;
   media_kind: "gait" | "facial";
   media_name: string;
 };
@@ -66,7 +69,13 @@ function DashboardPage() {
   useEffect(() => {
     const raw = sessionStorage.getItem("latestResult");
     if (raw) {
-      try { setStored(JSON.parse(raw) as Stored); } catch { /* ignore */ }
+      try {
+        const s = JSON.parse(raw) as Stored;
+        setStored(s);
+        if (s.patient_name) setPatientName(s.patient_name);
+        if (s.patient_age) setAge(s.patient_age);
+        if (s.patient_gender) setGender(s.patient_gender);
+      } catch { /* ignore */ }
     }
     supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
   }, []);
@@ -190,10 +199,15 @@ function DashboardPage() {
                 Media: <span className="text-foreground/80">{stored.media_name}</span> · Mode: <span className="text-foreground/80">{stored.result.mode}</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                <ExportBtn onClick={exportPDF} icon={Printer} label="PDF" />
-                <ExportBtn onClick={onExportPNG} icon={ImageDown} label="PNG" />
-                <ExportBtn onClick={() => exportCSV(stored.result)} icon={FileSpreadsheet} label="CSV" />
-                <ExportBtn onClick={() => exportJSON(stored.result, { name: patientName, age, gender })} icon={FileJson} label="JSON" />
+                {(() => {
+                  const patient = { name: patientName, patientId: stored.patient_id, age, gender };
+                  return <>
+                    <ExportBtn onClick={() => exportPDF(stored.result, patient)} icon={Printer} label="PDF" />
+                    <ExportBtn onClick={onExportPNG} icon={ImageDown} label="PNG" />
+                    <ExportBtn onClick={() => exportCSV(stored.result, patient)} icon={FileSpreadsheet} label="CSV" />
+                    <ExportBtn onClick={() => exportJSON(stored.result, patient)} icon={FileJson} label="JSON" />
+                  </>;
+                })()}
                 <button
                   onClick={onSave}
                   disabled={saving || !!savedId}
