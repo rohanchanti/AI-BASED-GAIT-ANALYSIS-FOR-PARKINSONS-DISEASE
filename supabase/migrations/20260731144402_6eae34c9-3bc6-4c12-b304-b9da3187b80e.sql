@@ -1,0 +1,2 @@
+ALTER TABLE public.reports DROP CONSTRAINT IF EXISTS reports_mode_check;
+ALTER TABLE public.reports ADD CONSTRAINT reports_mode_check CHECK (mode = ANY (ARRAY['normal','tug','side','front','multi','quick','standard','precision']::text[]));
