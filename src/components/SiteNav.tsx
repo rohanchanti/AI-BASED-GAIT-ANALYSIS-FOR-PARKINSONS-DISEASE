@@ -60,7 +60,7 @@ export function SiteNav() {
           {links.map((l) => (
             <Link
               key={l.to}
-              to={l.to.startsWith("/#") ? "/" : l.to}
+              to={(l.to.startsWith("/#") ? "/" : l.to) as "/"}
               hash={l.to.startsWith("/#") ? l.to.slice(2) : undefined}
               className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-white/5"
               activeOptions={{ exact: l.to === "/" }}
@@ -83,6 +83,7 @@ export function SiteNav() {
             <>
               <Link
                 to="/auth"
+                search={{ mode: "login" as const }}
                 className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
               >
                 Login
@@ -113,7 +114,7 @@ export function SiteNav() {
             {links.map((l) => (
               <Link
                 key={l.to}
-                to={l.to.startsWith("/#") ? "/" : l.to}
+                to={(l.to.startsWith("/#") ? "/" : l.to) as "/"}
                 hash={l.to.startsWith("/#") ? l.to.slice(2) : undefined}
                 onClick={() => setOpen(false)}
                 className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-white/5"
@@ -128,7 +129,7 @@ export function SiteNav() {
                 </Link>
               ) : (
                 <>
-                  <Link to="/auth" onClick={() => setOpen(false)} className="flex-1 rounded-lg border border-border px-4 py-2 text-center text-sm">Login</Link>
+                  <Link to="/auth" search={{ mode: "login" as const }} onClick={() => setOpen(false)} className="flex-1 rounded-lg border border-border px-4 py-2 text-center text-sm">Login</Link>
                   <Link to="/auth" search={{ mode: "register" as const }} onClick={() => setOpen(false)} className="flex-1 rounded-lg bg-primary px-4 py-2 text-center text-sm font-medium text-primary-foreground">Register</Link>
                 </>
               )}
