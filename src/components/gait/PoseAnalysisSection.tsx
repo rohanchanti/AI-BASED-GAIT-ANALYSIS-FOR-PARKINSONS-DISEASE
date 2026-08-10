@@ -204,7 +204,7 @@ export function PoseAnalysisSection({
             <YAxis {...AXIS} unit="°" domain={["auto", "auto"]} />
             <Tooltip
               contentStyle={{ background: "#0b1020", border: "1px solid #26304d", fontSize: 12 }}
-              formatter={(v: number | null) => (v == null ? "n/a" : `${Number(v).toFixed(1)}°`)}
+              formatter={(v) => (v == null ? "n/a" : `${Number(v).toFixed(1)}°`)}
               labelFormatter={(l) => `t = ${l}s`}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
