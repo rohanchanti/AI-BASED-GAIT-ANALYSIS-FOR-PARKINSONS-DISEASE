@@ -94,6 +94,15 @@ export interface PoseGaitMetrics {
   analysisDurationSec: number;
   cameraView: CameraView;
   warnings: string[];
+  /* --- cycle-based additions (optional, computed from detected cycles) --- */
+  /** number of complete gait cycles used for aggregation */
+  cycleCount?: number;
+  stancePct?: number | null;
+  swingPct?: number | null;
+  doubleSupportPct?: number | null;
+  singleSupportPct?: number | null;
+  /** stride-time coefficient of variation (%) — gait variability marker */
+  strideTimeCv?: number | null;
   /** relative (pixel-space) spatial estimates — NOT metres */
   relativeStepLength: number | null;
   relativeWalkingSpeed: number | null;
@@ -106,6 +115,13 @@ export interface PoseAnalysis {
   metrics: PoseGaitMetrics;
   angles: JointAngleSample[];
   events: GaitEvent[];
+  /* --- additive metadata (optional so older stored payloads stay valid) --- */
+  quality?: AnalysisQuality;
+  cycles?: GaitCycle[];
+  calibration?: CalibrationInfo;
+  validation?: VideoValidationResult;
+  /** preprocessing audit trail (counts of filtered / interpolated samples) */
+  preprocessing?: Record<string, unknown>;
 }
 
 /** Full result incl. raw landmarks — kept in memory only (export use). */
