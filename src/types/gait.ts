@@ -94,6 +94,15 @@ export interface PoseGaitMetrics {
   analysisDurationSec: number;
   cameraView: CameraView;
   warnings: string[];
+  /* --- cycle-based additions (optional, computed from detected cycles) --- */
+  /** number of complete gait cycles used for aggregation */
+  cycleCount?: number;
+  stancePct?: number | null;
+  swingPct?: number | null;
+  doubleSupportPct?: number | null;
+  singleSupportPct?: number | null;
+  /** stride-time coefficient of variation (%) — gait variability marker */
+  strideTimeCv?: number | null;
   /** relative (pixel-space) spatial estimates — NOT metres */
   relativeStepLength: number | null;
   relativeWalkingSpeed: number | null;
@@ -106,6 +115,13 @@ export interface PoseAnalysis {
   metrics: PoseGaitMetrics;
   angles: JointAngleSample[];
   events: GaitEvent[];
+  /* --- additive metadata (optional so older stored payloads stay valid) --- */
+  quality?: AnalysisQuality;
+  cycles?: GaitCycle[];
+  calibration?: CalibrationInfo;
+  validation?: VideoValidationResult;
+  /** preprocessing audit trail (counts of filtered / interpolated samples) */
+  preprocessing?: Record<string, unknown>;
 }
 
 /** Full result incl. raw landmarks — kept in memory only (export use). */
@@ -125,4 +141,87 @@ export function symmetryIndex(left: number | null, right: number | null): number
   if (!isFinite(mean) || Math.abs(mean) < 1e-6) return null;
   const v = 100 * (1 - Math.abs(left - right) / Math.abs(mean));
   return Math.max(0, Math.min(100, v));
+}
+
+/* ==========================================================================
+ * Quality, cycle and model metadata (additive — existing fields unchanged)
+ * ========================================================================== */
+
+/** Descriptive analysis-quality scores. All 0..100 unless noted. */
+export interface AnalysisQuality {
+  poseConfidence: number;
+  validFramePercent: number;
+  continuityScore: number;
+  bodyVisibilityScore: number;
+  gaitCycleSufficiency: number;
+  videoStabilityScore: number;
+  /** weighted composite of the above */
+  overall: number;
+  /** number of complete gait cycles used for aggregation */
+  validCycles: number;
+  /** normalized torso jitter (camera-shake proxy), null when not measurable */
+  cameraJitter: number | null;
+  warnings: string[];
+}
+
+/** One complete gait cycle (heel strike → next heel strike, same side). */
+export interface GaitCycle {
+  side: "left" | "right";
+  startTime: number;
+  endTime: number;
+  duration: number;
+  /** toe-off time inside the cycle, null when not detected */
+  toeOff: number | null;
+  stanceSec: number | null;
+  swingSec: number | null;
+  stancePct: number | null;
+  swingPct: number | null;
+}
+
+/** Robust aggregation over multiple cycles/trials. */
+export interface Aggregate {
+  n: number;
+  mean: number | null;
+  median: number | null;
+  sd: number | null;
+  /** coefficient of variation in % */
+  cv: number | null;
+}
+
+export interface SymmetryStat {
+  label: string;
+  left: Aggregate;
+  right: Aggregate;
+  difference: number | null;
+  /** normalized asymmetry index 0..100 (100 = symmetric) */
+  index: number | null;
+  unit: string;
+}
+
+export type CalibrationSource = "known-distance" | "subject-height" | "none";
+
+export interface CalibrationInfo {
+  source: CalibrationSource;
+  /** metres per normalized image unit, null when uncalibrated */
+  metersPerUnit: number | null;
+  /** true when derived from an assumed/estimated reference rather than measured */
+  estimated: boolean;
+  note: string;
+}
+
+export interface ModelInfo {
+  id: string;
+  version: string;
+  method: "heuristic" | "ml";
+  /** true only when the model was trained AND validated on real labelled data */
+  validated: boolean;
+  note: string;
+}
+
+export interface VideoValidationResult {
+  ok: boolean;
+  /** conditions that make gait analysis impossible */
+  blocking: string[];
+  /** conditions that degrade reliability but allow analysis to continue */
+  warnings: string[];
 }
