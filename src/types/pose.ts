@@ -60,6 +60,12 @@ export interface PoseFrame {
   landmarks: PoseLandmark[] | null;
   /** how many people MediaPipe detected in this frame */
   peopleDetected: number;
+  /** set by temporal preprocessing: all gait landmarks present & trusted */
+  valid?: boolean;
+  /** mean visibility of the gait landmarks in this frame (0..1) */
+  frameConfidence?: number;
+  /** true when one or more samples in this frame were gap-interpolated */
+  interpolated?: boolean;
 }
 
 export interface VideoInfo {
