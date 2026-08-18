@@ -49,6 +49,8 @@ export function PoseAnalysisSection({
 }) {
   const [tab, setTab] = useState<"Knee" | "Hip" | "Ankle">("Knee");
   const m = analysis.metrics;
+  const q = analysis.quality ?? null;
+  const cal = analysis.calibration ?? null;
 
   const series = useMemo(
     () =>
@@ -365,6 +367,66 @@ export function PoseAnalysisSection({
           </p>
         </>
       )}
+
+      {/* Signal reliability */}
+      {q && (
+        <>
+          <SectionTitle>Signal reliability &amp; confidence</SectionTitle>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card label="Overall analysis quality" value={fmt(q.overall, "%")} sub="weighted composite" />
+            <Card label="Landmark confidence" value={fmt(q.poseConfidence, "%")} />
+            <Card label="Valid frames" value={fmt(q.validFramePercent, "%")} sub="after filtering" />
+            <Card label="Tracking continuity" value={fmt(q.continuityScore, "%")} />
+            <Card label="Full-body visibility" value={fmt(q.bodyVisibilityScore, "%")} />
+            <Card label="Video stability" value={fmt(q.videoStabilityScore, "%")} sub="camera-shake compensated" />
+            <Card label="Complete gait cycles" value={q.validCycles ? String(q.validCycles) : "Insufficient data"} />
+            <Card label="Cycle sufficiency" value={fmt(q.gaitCycleSufficiency, "%")} />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Landmarks below the confidence threshold are discarded, physiologically impossible jumps
+            are rejected, short occlusions ({"\u2264"}4 frames) are interpolated, and the remaining
+            trajectories are Savitzky-Golay smoothed before any metric is computed.
+          </p>
+        </>
+      )}
+
+      {/* Cycle variability */}
+      {m.cycleCount ? (
+        <>
+          <SectionTitle>Cycle-based aggregation</SectionTitle>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Card label="Cycles aggregated" value={String(m.cycleCount)} />
+            <Card label="Stance phase" value={fmt(m.stancePct ?? null, "%")} />
+            <Card label="Swing phase" value={fmt(m.swingPct ?? null, "%")} />
+            <Card label="Double support" value={fmt(m.doubleSupportPct ?? null, "%")} />
+            <Card label="Single support" value={fmt(m.singleSupportPct ?? null, "%")} />
+            <Card label="Stride-time variability (CV)" value={fmt(m.strideTimeCv ?? null, "%")} />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Values are aggregated over every detected gait cycle (median when variability is high),
+            reported with the coefficient of variation so run-to-run consistency is visible.
+          </p>
+        </>
+      ) : null}
+
+      {/* Spatial calibration */}
+      <SectionTitle>Spatial calibration</SectionTitle>
+      <div className="rounded-xl border border-border/60 p-4 text-xs text-muted-foreground">
+        {cal && cal.metersPerUnit != null ? (
+          <>
+            Calibrated from {cal.source === "subject-height" ? "subject height" : "a known distance"}:
+            {" "}
+            {cal.metersPerUnit.toFixed(4)} m per normalized image unit
+            {cal.estimated ? " (estimated reference)" : ""}. {cal.note}
+          </>
+        ) : (
+          <>
+            No spatial calibration was supplied, so distances and speeds derived from pose geometry
+            are reported in relative (normalized image) units only and are explicitly not metres.
+            Provide the subject height or a known in-frame distance to obtain real-world units.
+          </>
+        )}
+      </div>
 
       {/* Quality control */}
       <SectionTitle>Quality control</SectionTitle>
