@@ -14,6 +14,13 @@ export type AnalysisMode =
 
 export type ClinicalStatus = "normal" | "borderline" | "abnormal";
 
+import {
+  classifySeverity,
+  getRiskModel,
+  type GaitFeatureVector,
+} from "@/services/gait/riskModel";
+import type { ModelInfo } from "@/types/gait";
+
 export interface ParameterRow {
   key: string;
   name: string;
@@ -54,6 +61,33 @@ export interface AnalysisResult {
   riskLevel: "Very Low" | "Low" | "Moderate" | "High" | "Very High";
   parameters: ParameterRow[];
   summary: ClinicalSummary;
+  /** which risk model produced `probability` (undefined for legacy payloads) */
+  model?: ModelInfo;
+  /** 0..100 analysis-quality score when a pose analysis backed this result */
+  qualityScore?: number | null;
+}
+
+/**
+ * Per-parameter abnormality: 0 inside the healthy range, growing with the
+ * distance outside it, normalized by the range width and clamped to 1. This is
+ * the feature representation consumed by the risk model — deliberately kept
+ * separate from the model itself so the two can be validated independently.
+ */
+export function featureVectorFromParameters(
+  parameters: ParameterRow[],
+  quality = 0.7,
+  cycles = 0,
+): GaitFeatureVector {
+  const values: Record<string, number | null> = {};
+  const abnormality: Record<string, number> = {};
+  for (const p of parameters) {
+    values[p.key] = p.patient;
+    const [lo, hi] = p.range;
+    const width = Math.max(1e-6, hi - lo);
+    const outside = p.patient < lo ? lo - p.patient : p.patient > hi ? p.patient - hi : 0;
+    abnormality[p.key] = Math.max(0, Math.min(1, outside / width));
+  }
+  return { values, abnormality, quality, cycles };
 }
 
 /* -------------------- deterministic RNG -------------------- */
@@ -421,10 +455,8 @@ export function analyzeFromMeasurements(
   const overallGaitHealth = Math.round(
     (counts.normal * 100 + counts.borderline * 65 + counts.abnormal * 25) / total,
   );
-  const parkinsonsRisk = Math.min(
-    98,
-    Math.round(counts.abnormal * (100 / total) * 1.6 + counts.borderline * (100 / total) * 0.6),
-  );
+  // Risk + severity come from the pluggable model layer (see riskModel.ts):
+  // features → abnormality scores → model prediction → displayed risk.
   const balanceKeys = new Set(["step_width", "double_support", "single_support", "stability", "turning_time"]);
   const balanceParams = parameters.filter((p) => balanceKeys.has(p.key));
   const balanceScore = balanceParams.length
@@ -435,28 +467,24 @@ export function analyzeFromMeasurements(
         ) / balanceParams.length,
       )
     : overallGaitHealth;
-  const fallRiskScore = Math.min(
-    98,
-    Math.max(2, Math.round(100 - balanceScore * 0.6 - (100 - parkinsonsRisk) * 0.2)),
-  );
 
-  const severity: ClinicalSummary["severity"] =
-    parkinsonsRisk < 20 ? "Normal" :
-    parkinsonsRisk < 45 ? "Mild Parkinsonian Gait" :
-    parkinsonsRisk < 70 ? "Moderate Parkinsonian Gait" :
-    "Severe Parkinsonian Gait";
-
-  const riskLevel: AnalysisResult["riskLevel"] =
-    parkinsonsRisk < 20 ? "Very Low" :
-    parkinsonsRisk < 40 ? "Low" :
-    parkinsonsRisk < 60 ? "Moderate" :
-    parkinsonsRisk < 80 ? "High" : "Very High";
-
-  // Confidence blends periodicity + video length + motion presence.
-  const confidence = clamp(
+  // Signal-driven data confidence: periodicity + recording length + motion.
+  const dataQuality = clamp(
     0.45 + periodic * 0.35 + Math.min(m.durationSec / 20, 0.15) + Math.min(vigor, 1) * 0.05,
     0.4,
     0.98,
+  );
+  const prediction = getRiskModel().predict(
+    featureVectorFromParameters(parameters, dataQuality, 0),
+  );
+  const parkinsonsRisk = prediction.score;
+  const riskLevel = prediction.level;
+  const confidence = prediction.confidence;
+  const severity = classifySeverity(parkinsonsRisk, confidence)
+    .label as ClinicalSummary["severity"];
+  const fallRiskScore = Math.min(
+    98,
+    Math.max(2, Math.round(100 - balanceScore * 0.6 - (100 - parkinsonsRisk) * 0.2)),
   );
 
   const assess = (score: number, good: string, midMsg: string, bad: string) =>
@@ -494,10 +522,11 @@ export function analyzeFromMeasurements(
   return {
     kind: "gait",
     mode,
-    probability: parkinsonsRisk / 100,
+    probability: prediction.probability,
     confidence,
     riskLevel,
     parameters,
     summary,
+    model: prediction.model,
   };
 }
