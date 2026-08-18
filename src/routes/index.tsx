@@ -187,6 +187,11 @@ function LandingPage() {
       )}
       {stage === "processing" && detected && mode && (
         <ProcessingScreen
+          subjectHeightMeters={
+            patient?.heightCm && Number(patient.heightCm) > 80
+              ? Number(patient.heightCm) / 100
+              : undefined
+          }
           kind={detected.kind}
           mode={mode}
           file={detected.file}
