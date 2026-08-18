@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 import { Mail, Lock, User } from "lucide-react";
-import logoSymbol from "@/assets/logo-symbol.png";
+import logoSymbol from "@/assets/logo-symbol.png.asset.json";
 
 const search = z.object({
   mode: z.enum(["login", "register"]).optional().default("login"),
@@ -72,7 +72,7 @@ function AuthPage() {
     <section className="mx-auto max-w-md px-4 sm:px-6 py-16">
       <div className="glass gradient-border rounded-3xl p-8">
         <div className="flex items-center gap-2 justify-center">
-          <img src={logoSymbol} alt="NeuroStride emblem" className="h-8 w-8 object-contain" />
+          <img src={logoSymbol.url} alt="NeuroStride emblem" className="h-8 w-8 object-contain" />
           <span className="font-display text-lg font-semibold">Neuro<span className="gradient-text">Stride</span> AI</span>
         </div>
         <h1 className="mt-6 font-display text-2xl font-semibold text-center">
