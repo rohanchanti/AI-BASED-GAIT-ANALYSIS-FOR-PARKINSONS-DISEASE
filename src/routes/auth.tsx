@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { toast } from "sonner";
 import { Mail, Lock, User } from "lucide-react";
-import logoSymbol from "@/assets/logo-symbol.png";
+import logoSymbol from "@/assets/logo-symbol.png.asset.json";
 
 const search = z.object({
   mode: z.enum(["login", "register"]).optional().default("login"),
