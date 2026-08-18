@@ -15,6 +15,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { saveReport, listReports } from "@/lib/reports.functions";
 import type { AnalysisResult, ClinicalStatus, ParameterRow } from "@/lib/mock-analysis";
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
+import { readPoseAnalysis } from "@/lib/pose-session";
+import { PoseAnalysisSection } from "@/components/gait/PoseAnalysisSection";
+import type { PoseAnalysis } from "@/types/gait";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -49,6 +52,7 @@ const STATUS_HEX: Record<ClinicalStatus, string> = {
 
 function DashboardPage() {
   const [stored, setStored] = useState<Stored | null>(null);
+  const [pose, setPose] = useState<PoseAnalysis | null>(null);
   const [patientName, setPatientName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
@@ -65,6 +69,10 @@ function DashboardPage() {
     queryKey: ["reports"],
     queryFn: () => list(),
   });
+
+  useEffect(() => {
+    setPose(readPoseAnalysis());
+  }, []);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("latestResult");
@@ -175,7 +183,10 @@ function DashboardPage() {
                   {stored.result.summary.severity}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  AI Confidence {(stored.result.summary.confidence * 100).toFixed(1)}%
+                  Prediction confidence {(stored.result.summary.confidence * 100).toFixed(1)}%
+                  {stored.result.qualityScore != null
+                    ? ` · Analysis quality ${stored.result.qualityScore.toFixed(0)}%`
+                    : ""}
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
@@ -239,6 +250,21 @@ function DashboardPage() {
             </div>
           </div>
 
+          {/* MediaPipe pose analysis (real landmark geometry) */}
+          {pose && (
+            <div className="glass rounded-2xl p-6 overflow-x-auto">
+              <PoseAnalysisSection
+                analysis={pose}
+                pixelAvailable
+                pixelSummary={{
+                  cadence: stored.result.parameters.find((p) => p.key === "cadence")?.patient,
+                  symmetry: stored.result.parameters.find((p) => p.key === "walking_sym")?.patient,
+                  stability: stored.result.parameters.find((p) => p.key === "stability")?.patient,
+                }}
+              />
+            </div>
+          )}
+
           {/* Clinical comparison table */}
           <div className="glass rounded-2xl p-6 overflow-x-auto">
             <div className="text-xs uppercase tracking-[0.2em] text-cyan mb-3">Clinical Comparison</div>
@@ -259,6 +285,20 @@ function DashboardPage() {
               decision-support and educational tool. It is not a substitute for diagnosis, treatment, or medical advice
               from a qualified neurologist or healthcare professional. All results should be interpreted alongside a
               comprehensive clinical examination.
+            </p>
+            {stored.result.model && !stored.result.model.validated && (
+              <p className="mt-3">
+                <strong className="text-foreground/80">Model status:</strong> the risk score was produced by{" "}
+                {stored.result.model.id} v{stored.result.model.version} — a transparent{" "}
+                {stored.result.model.method} that aggregates deviations from healthy reference ranges. It has
+                not been trained or validated on clinically labelled Parkinson's data, so it is a research
+                screening indicator, not a diagnostic probability.
+              </p>
+            )}
+            <p className="mt-3">
+              <strong className="text-foreground/80">Units:</strong> distance and speed values are expressed
+              in real-world units only when a calibration reference (subject height or a known in-frame
+              distance) was supplied; otherwise they are relative image-space estimates.
             </p>
           </div>
         </div>
