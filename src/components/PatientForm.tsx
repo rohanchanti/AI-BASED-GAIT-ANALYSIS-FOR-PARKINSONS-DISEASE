@@ -6,6 +6,8 @@ export type PatientInfo = {
   patientId: string;
   age: string;
   gender: string;
+  /** standing height in cm — optional spatial-calibration reference */
+  heightCm?: string;
 };
 
 interface Props {
@@ -18,11 +20,18 @@ export function PatientForm({ onSubmit, onCancel }: Props) {
   const [patientId, setPatientId] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
+  const [heightCm, setHeightCm] = useState("");
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !age.trim() || !gender.trim()) return;
-    onSubmit({ name: name.trim(), patientId: patientId.trim(), age: age.trim(), gender: gender.trim() });
+    onSubmit({
+      name: name.trim(),
+      patientId: patientId.trim(),
+      age: age.trim(),
+      gender: gender.trim(),
+      heightCm: heightCm.trim(),
+    });
   }
 
   return (
@@ -100,6 +109,22 @@ export function PatientForm({ onSubmit, onCancel }: Props) {
               <option value="Female">Female</option>
               <option value="Other">Other</option>
             </select>
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="text-xs text-muted-foreground">Standing height (cm)</span>
+            <input
+              type="number"
+              min={80}
+              max={230}
+              value={heightCm}
+              onChange={(e) => setHeightCm(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-border bg-background/40 px-3 py-2.5 text-sm outline-none focus:border-primary"
+              placeholder="Optional — enables real-world (metre) calibration"
+            />
+            <span className="mt-1 block text-[11px] text-muted-foreground">
+              Without a height or a known in-frame distance, distances and speeds are reported in
+              relative image units instead of metres.
+            </span>
           </label>
         </div>
 

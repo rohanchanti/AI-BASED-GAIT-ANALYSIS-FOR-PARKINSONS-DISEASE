@@ -1,4 +1,5 @@
 import type { AnalysisResult } from "./mock-analysis";
+import { readPoseAnalysis } from "./pose-session";
 import { toPng } from "html-to-image";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -25,6 +26,9 @@ export function exportJSON(result: AnalysisResult, patient?: PatientInfo) {
     risk_level: result.riskLevel,
     summary: result.summary,
     parameters: result.parameters,
+    risk_model: result.model ?? null,
+    analysis_quality_score: result.qualityScore ?? null,
+    pose_analysis: readPoseAnalysis(),
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
   triggerDownload(blob, filename(result, "json"));
@@ -42,7 +46,10 @@ export function exportCSV(result: AnalysisResult, patient?: PatientInfo) {
     ["Analysis Type", result.kind],
     ["Parkinson's Risk", `${(result.probability * 100).toFixed(1)}%`],
     ["Risk Level", result.riskLevel],
-    ["AI Confidence", `${(result.confidence * 100).toFixed(1)}%`],
+    ["Prediction Confidence", `${(result.confidence * 100).toFixed(1)}%`],
+    ["Risk Model", result.model ? `${result.model.id} v${result.model.version} (${result.model.method})` : "n/a"],
+    ["Model Clinically Validated", result.model ? (result.model.validated ? "Yes" : "No — research/screening use only") : "n/a"],
+    ["Analysis Quality Score", result.qualityScore != null ? `${result.qualityScore}%` : "n/a"],
     [],
   ];
   const header = [
@@ -136,7 +143,16 @@ export function exportPDF(result: AnalysisResult, patient?: PatientInfo) {
     ["Overall Gait Health", `${s.overallGaitHealth}/100`],
     ["Balance Score", `${s.balanceScore}%`],
     ["Fall Risk", `${s.fallRiskScore}%`],
-    ["AI Confidence", `${(result.confidence * 100).toFixed(1)}%`],
+    ["Prediction Confidence", `${(result.confidence * 100).toFixed(1)}%`],
+    ["Analysis Quality Score", result.qualityScore != null ? `${result.qualityScore}%` : "Not available"],
+    ["Risk Model",
+      result.model ? `${result.model.id} v${result.model.version} · ${result.model.method}` : "Not recorded"],
+    ["Model Validation Status",
+      result.model
+        ? result.model.validated
+          ? "Trained and validated"
+          : "Not clinically validated — research/screening indicator only"
+        : "Not recorded"],
     ["Parameters Normal / Borderline / Abnormal",
       `${s.counts.normal} / ${s.counts.borderline} / ${s.counts.abnormal}`],
   ];
@@ -237,7 +253,11 @@ export function exportPDF(result: AnalysisResult, patient?: PatientInfo) {
   doc.setFont(FONT, "normal");
   doc.setFontSize(BODY_SIZE);
   const disclaimer =
-    "Healthy adult gait reference values are derived from internationally accepted clinical gait analysis literature, rehabilitation guidelines, and validated biomechanical research aligned with World Health Organization guidance. These values are intended for clinical comparison and educational decision support only. This AI system is not a substitute for diagnosis, treatment, or medical advice from a qualified neurologist or healthcare professional. All results should be interpreted alongside a comprehensive clinical examination.";
+    "Healthy adult gait reference values are derived from internationally accepted clinical gait analysis literature, rehabilitation guidelines, and validated biomechanical research aligned with World Health Organization guidance. These values are intended for clinical comparison and educational decision support only. This AI system is not a substitute for diagnosis, treatment, or medical advice from a qualified neurologist or healthcare professional. All results should be interpreted alongside a comprehensive clinical examination. " +
+    (result.model && !result.model.validated
+      ? "The risk score in this report was produced by a transparent, non-validated screening heuristic that aggregates deviations from healthy reference ranges; it has not been trained or validated on clinically labelled Parkinson's data and must not be read as a diagnosis or probability of disease. "
+      : "") +
+    "Spatial measurements are only expressed in real-world units when a calibration reference (subject height or a known in-frame distance) was provided; otherwise they are relative image-space values.";
   const dLines = doc.splitTextToSize(disclaimer, pageW - margin * 2);
   doc.text(dLines, margin, y);
 

@@ -3,6 +3,8 @@ import type { MediaKind } from "./UploadZone";
 import type { AnalysisMode } from "./AnalysisModePicker";
 import { Activity } from "lucide-react";
 import { analyzeVideoFile } from "@/lib/video-analyzer";
+import { runPoseGaitAnalysis } from "@/services/pose/gaitAnalysisService";
+import { persistPoseAnalysis } from "@/lib/pose-session";
 import {
   analyzeFromMeasurements,
   generateMockAnalysis,
@@ -13,6 +15,8 @@ interface Props {
   kind: MediaKind;
   mode: AnalysisMode;
   file: File;
+  /** optional spatial-calibration reference (subject standing height, metres) */
+  subjectHeightMeters?: number;
   onComplete: (result: AnalysisResult) => void;
   onError?: (message: string) => void;
 }
@@ -28,7 +32,14 @@ const LABEL: Record<AnalysisMode, string> = {
   precision: "Precision Analysis",
 };
 
-export function ProcessingScreen({ kind, mode, file, onComplete, onError }: Props) {
+export function ProcessingScreen({
+  kind,
+  mode,
+  file,
+  subjectHeightMeters,
+  onComplete,
+  onError,
+}: Props) {
   const [uploadPct, setUploadPct] = useState(0);
   const [analysisPct, setAnalysisPct] = useState(0);
   const [phase, setPhase] = useState<"upload" | "analyze" | "done">("upload");
@@ -68,6 +79,26 @@ export function ProcessingScreen({ kind, mode, file, onComplete, onError }: Prop
             controller.signal,
           );
           result = analyzeFromMeasurements(measurements, mode);
+
+          // Real MediaPipe pose pass (silent — no stage output). Failures never
+          // block the pixel-based result; the pose section is simply omitted.
+          try {
+            const pose = await runPoseGaitAnalysis(
+              file,
+              { subjectHeightMeters },
+              undefined,
+              controller.signal,
+            );
+            if (!cancelled) {
+              persistPoseAnalysis(pose);
+              result = {
+                ...result,
+                qualityScore: pose.quality?.overall ?? null,
+              };
+            }
+          } catch {
+            persistPoseAnalysis(null);
+          }
         } else {
           // Facial single-image path — retain seeded model.
           for (let i = 0; i <= 20; i++) {
@@ -92,7 +123,7 @@ export function ProcessingScreen({ kind, mode, file, onComplete, onError }: Prop
       cancelled = true;
       controller.abort();
     };
-  }, [phase, file, kind, mode, onComplete, onError]);
+  }, [phase, file, kind, mode, subjectHeightMeters, onComplete, onError]);
 
   const pct = phase === "upload" ? uploadPct : analysisPct;
   const label =

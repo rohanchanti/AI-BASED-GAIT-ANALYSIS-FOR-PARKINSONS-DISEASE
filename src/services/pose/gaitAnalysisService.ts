@@ -18,6 +18,12 @@ import {
 } from "@/types/gait";
 import type { PoseFrame } from "@/types/pose";
 import { extractPoseFrames } from "./mediaPipePoseService";
+import { preprocessPoseFrames } from "./temporalFilter";
+import { buildGaitCycles, summarizeCycles, robustValue, type CycleSummary } from "./gaitCycleService";
+import { computeAnalysisQuality } from "./qualityService";
+import { validateAnalysis, validateVideoMetadata } from "./videoValidation";
+import { resolvePoseConfig, type PosePipelineConfig } from "./poseConfig";
+import { NO_CALIBRATION, calibrationFromSubjectHeight } from "@/services/gait/calibration";
 import { computeAngleSeries, jointStats } from "./jointAngleService";
 import { detectGaitEvents } from "./gaitEventDetector";
 import { hasUsableGaitLandmarks, indexLandmarks, reliable } from "./poseLandmarkUtils";
@@ -38,6 +44,10 @@ export interface PoseAnalysisConfig {
   confidenceThreshold?: number;
   cameraView?: CameraView;
   sampleFps?: number;
+  /** overrides for the centralized pipeline thresholds */
+  pipeline?: Partial<PosePipelineConfig>;
+  /** optional spatial calibration reference: subject standing height (m) */
+  subjectHeightMeters?: number;
 }
 
 export interface PoseProgress {
@@ -110,6 +120,7 @@ export function computeMetrics(
     duration: number;
     cameraView: CameraView;
     eventReason?: string;
+    cycles?: CycleSummary;
   },
 ): PoseGaitMetrics {
   const { threshold, duration } = opts;
@@ -132,7 +143,15 @@ export function computeMetrics(
   const heelStrikes = events.filter((e) => e.type === "heel_strike");
   const stepCount = heelStrikes.length;
   const allIntervals = intervals(events);
-  const meanStepTime = allIntervals.length ? +mean(allIntervals).toFixed(3) : null;
+  // Prefer the robust (median-aware) cycle aggregate over a raw mean so a
+  // single mis-detected interval cannot shift cadence.
+  const cycleStepTime = opts.cycles ? robustValue(opts.cycles.stepTime) : null;
+  const meanStepTime =
+    cycleStepTime != null
+      ? +cycleStepTime.toFixed(3)
+      : allIntervals.length
+      ? +mean(allIntervals).toFixed(3)
+      : null;
   const cadence = meanStepTime ? +(60 / meanStepTime).toFixed(1) : null;
 
   const leftInts = intervals(events, "left");
@@ -183,8 +202,15 @@ export function computeMetrics(
       "Side-view walking video is preferred for temporal and sagittal-plane gait analysis; sagittal joint angles are not reliably measurable from this view.",
     );
 
+  const cyc = opts.cycles;
   return {
     stepCount,
+    cycleCount: cyc?.cycles.length ?? 0,
+    stancePct: cyc ? robustValue(cyc.stancePct) : null,
+    swingPct: cyc ? robustValue(cyc.swingPct) : null,
+    doubleSupportPct: cyc?.doubleSupportPct ?? null,
+    singleSupportPct: cyc?.singleSupportPct ?? null,
+    strideTimeCv: cyc?.strideTimeCv ?? null,
     cadence: stepCount >= 3 ? cadence : null,
     meanStepTime: stepCount >= 3 ? meanStepTime : null,
     gaitCycleDuration,
@@ -214,7 +240,13 @@ export async function runPoseGaitAnalysis(
   onProgress?: (p: PoseProgress) => void,
   signal?: AbortSignal,
 ): Promise<PoseAnalysisFull> {
-  const threshold = config.confidenceThreshold ?? 0.5;
+  const cfg = resolvePoseConfig({
+    ...(config.pipeline ?? {}),
+    ...(config.confidenceThreshold != null
+      ? { minLandmarkConfidence: config.confidenceThreshold }
+      : {}),
+  });
+  const threshold = cfg.minLandmarkConfidence;
   const sampleFps = config.sampleFps ?? 15;
   let totalFrames = 0;
 
@@ -223,21 +255,26 @@ export async function runPoseGaitAnalysis(
 
   report("INITIALIZING_POSE", 0.02);
 
-  const { frames, info } = await extractPoseFrames(file, {
+  const { frames: rawFrames, info } = await extractPoseFrames(file, {
     sampleFps,
     signal,
-    onProgress: (p) => {
-      totalFrames = Math.max(totalFrames, Math.round(p ? 0 : 0));
-      report("EXTRACTING_LANDMARKS", 0.05 + p * 0.8, Math.round(p * 1000));
-    },
+    onProgress: (p) => report("EXTRACTING_LANDMARKS", 0.05 + p * 0.8, Math.round(p * 1000)),
   });
-  totalFrames = frames.length;
+  totalFrames = rawFrames.length;
+
+  const metaValidation = validateVideoMetadata(info, cfg);
+
+  // Temporal preprocessing: confidence filtering → jump rejection →
+  // short-gap interpolation → Savitzky-Golay smoothing → validity marking.
+  const { frames, report: pre } = preprocessPoseFrames(rawFrames, cfg);
 
   report("CALCULATING_ANGLES", 0.88, totalFrames);
   const angles = computeAngleSeries(frames, threshold);
 
   report("DETECTING_GAIT_EVENTS", 0.93, totalFrames);
-  const { events, reason } = detectGaitEvents(frames, threshold);
+  const { events, reason } = detectGaitEvents(frames, threshold, cfg);
+  const cycles = buildGaitCycles(events, cfg);
+  const cycleSummary = summarizeCycles(cycles);
 
   report("CALCULATING_METRICS", 0.97, totalFrames);
   const cameraView =
@@ -245,12 +282,31 @@ export async function runPoseGaitAnalysis(
       ? config.cameraView
       : estimateCameraView(frames, threshold);
 
+  const quality = computeAnalysisQuality({
+    frames,
+    report: pre,
+    validCycles: cycles.length,
+    info,
+    cfg,
+  });
+  const validation = validateAnalysis(frames, quality, info, cfg);
+  validation.blocking.push(...metaValidation.blocking);
+  validation.warnings.push(...metaValidation.warnings);
+  validation.ok = validation.blocking.length === 0;
+
+  const calibration =
+    config.subjectHeightMeters && config.subjectHeightMeters > 0.5
+      ? calibrationFromSubjectHeight(frames, config.subjectHeightMeters, threshold)
+      : NO_CALIBRATION;
+
   const metrics = computeMetrics(frames, angles, events, {
     threshold,
     duration: info.durationSec,
     cameraView,
     eventReason: reason,
+    cycles: cycleSummary,
   });
+  metrics.warnings.push(...validation.warnings.filter((w) => !metrics.warnings.includes(w)));
 
   report("COMPLETE", 1, totalFrames);
 
@@ -262,5 +318,10 @@ export async function runPoseGaitAnalysis(
     angles,
     events,
     frames,
+    quality,
+    cycles,
+    calibration,
+    validation,
+    preprocessing: pre as unknown as Record<string, unknown>,
   };
 }
