@@ -48,7 +48,7 @@ export function ProcessingScreen({
   // Simulated upload phase (real local file — brief indicator only).
   useEffect(() => {
     const start = performance.now();
-    const dur = 1200;
+    const dur = 500;
     let raf = 0;
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / dur);
