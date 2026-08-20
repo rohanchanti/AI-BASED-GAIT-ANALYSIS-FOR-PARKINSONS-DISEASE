@@ -48,7 +48,7 @@ export function ProcessingScreen({
   // Simulated upload phase (real local file — brief indicator only).
   useEffect(() => {
     const start = performance.now();
-    const dur = 1200;
+    const dur = 500;
     let raf = 0;
     const tick = (t: number) => {
       const p = Math.min(1, (t - start) / dur);
@@ -110,8 +110,7 @@ export function ProcessingScreen({
         }
         if (cancelled) return;
         setAnalysisPct(1);
-        setPhase("done");
-        setTimeout(() => onComplete(result), 400);
+        onComplete(result);
       } catch (err) {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : "Analysis failed";
