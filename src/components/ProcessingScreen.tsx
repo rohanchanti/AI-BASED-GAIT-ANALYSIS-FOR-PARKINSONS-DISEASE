@@ -110,8 +110,7 @@ export function ProcessingScreen({
         }
         if (cancelled) return;
         setAnalysisPct(1);
-        setPhase("done");
-        setTimeout(() => onComplete(result), 400);
+        onComplete(result);
       } catch (err) {
         if (cancelled) return;
         const msg = err instanceof Error ? err.message : "Analysis failed";
