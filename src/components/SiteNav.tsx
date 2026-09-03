@@ -51,8 +51,9 @@ export function SiteNav() {
               Neuro<span className="gradient-text">Stride</span> AI
             </div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              Parkinson&apos;s Detection
+              Movement Analysis Research
             </div>
+
           </div>
         </Link>
 
