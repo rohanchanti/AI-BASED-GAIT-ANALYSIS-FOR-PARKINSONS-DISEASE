@@ -66,8 +66,12 @@ function LandingPage() {
         patient_gender: patient?.gender ?? "",
         media_kind: detected.kind,
         media_name: detected.file.name,
+        analysis_id: nextAnalysisId(),
+        analysis_timestamp: new Date().toISOString(),
+        versions: ANALYSIS_VERSIONS,
       }),
     );
+
     setStage("done");
     toast.success("Analysis complete", { description: "Sign in to save & view the full dashboard." });
     navigate({ to: "/dashboard" });
