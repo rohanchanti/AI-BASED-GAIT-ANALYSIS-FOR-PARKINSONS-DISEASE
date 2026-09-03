@@ -6,14 +6,31 @@ import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
 import { ProcessingScreen } from "@/components/ProcessingScreen";
 import { PatientForm, type PatientInfo } from "@/components/PatientForm";
+import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
+import { ANALYSIS_VERSIONS, nextAnalysisId } from "@/lib/analysis-version";
 import type { AnalysisResult } from "@/lib/mock-analysis";
 import { toast } from "sonner";
 
+const TITLE = "NeuroStride AI — AI-Assisted Multimodal Parkinsonian Movement Analysis";
+const DESCRIPTION =
+  "Quantitative analysis of gait, facial movement, and motor biomarkers from video for research and clinical decision-support applications.";
+
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: LandingPage,
 });
 
 type Stage = "idle" | "patient" | "mode" | "processing" | "done";
+
 
 function LandingPage() {
   const [detected, setDetected] = useState<DetectedFile | null>(null);
@@ -49,8 +66,12 @@ function LandingPage() {
         patient_gender: patient?.gender ?? "",
         media_kind: detected.kind,
         media_name: detected.file.name,
+        analysis_id: nextAnalysisId(),
+        analysis_timestamp: new Date().toISOString(),
+        versions: ANALYSIS_VERSIONS,
       }),
     );
+
     setStage("done");
     toast.success("Analysis complete", { description: "Sign in to save & view the full dashboard." });
     navigate({ to: "/dashboard" });
@@ -83,18 +104,14 @@ function LandingPage() {
           <div className="mx-auto max-w-4xl text-center">
             <div className="inline-flex items-center gap-2 rounded-full glass px-3 py-1 text-xs text-cyan">
               <Sparkles className="h-3.5 w-3.5" />
-              AI research station · Parkinson&apos;s screening
+              Research platform · quantitative movement analysis
             </div>
             <h1 className="mt-6 font-display text-4xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
-              AI-powered <span className="gradient-text">Parkinson&apos;s Disease</span> detection
-              <span className="block text-foreground/80 text-3xl sm:text-4xl lg:text-5xl mt-3">
-                using Computer Vision &amp; Deep Learning
-              </span>
+              AI-Assisted <span className="gradient-text">Multimodal Parkinsonian</span> Movement Analysis
             </h1>
             <p className="mt-6 mx-auto max-w-2xl text-base sm:text-lg text-muted-foreground">
-              Upload a walking video or facial recording and receive an AI-generated assessment
-              with clinical biomechanical parameters, interactive charts, and a downloadable
-              medical-style report.
+              Quantitative analysis of gait, facial movement, and motor biomarkers from video for
+              research and clinical decision-support applications.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <a
@@ -107,24 +124,29 @@ function LandingPage() {
                 to="/research"
                 className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm hover:border-primary/60 hover:text-foreground transition"
               >
-                View research
+                Scientific basis
               </Link>
             </div>
 
+            <div className="mt-8 mx-auto max-w-2xl text-left">
+              <ResearchDisclaimer />
+            </div>
+
             {/* Stat pills */}
-            <div className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
               {[
-                { k: "27+", v: "clinical parameters" },
-                { k: "3", v: "analysis modes" },
-                { k: "2", v: "AI pipelines" },
-                { k: "&lt;10 min", v: "to full report" },
+                { k: "27+", v: "quantitative parameters" },
+                { k: "33", v: "tracked pose landmarks" },
+                { k: "5", v: "acquisition protocols" },
+                { k: "CSV · JSON · PDF", v: "research export" },
               ].map((s) => (
                 <div key={s.v} className="glass rounded-xl px-4 py-3 text-left">
-                  <div className="font-display text-2xl font-semibold gradient-text" dangerouslySetInnerHTML={{ __html: s.k }} />
+                  <div className="font-display text-2xl font-semibold gradient-text">{s.k}</div>
                   <div className="text-xs text-muted-foreground mt-1">{s.v}</div>
                 </div>
               ))}
             </div>
+
           </div>
         </div>
       </section>
@@ -137,23 +159,25 @@ function LandingPage() {
       {/* FEATURES */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 pb-24">
         <div className="text-center max-w-2xl mx-auto">
-          <div className="text-xs uppercase tracking-[0.2em] text-cyan">Onboard systems</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-cyan">Platform modules</div>
           <h2 className="mt-2 font-display text-3xl sm:text-4xl font-semibold">
-            An AI research station in your browser
+            A quantitative movement-analysis workbench
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Every pipeline is modular and swappable — designed for future models across voice,
-            spiral drawing, tremor sensors, and multimodal fusion.
+            Every stage is modular and swappable, so models can be replaced without redesigning the
+            interface. Measurements that the pipeline cannot compute are reported as not available
+            rather than estimated.
           </p>
         </div>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { icon: Activity, title: "Gait pipeline", body: "Frame extraction → pose estimation → joint angles → stride features → ML prediction." },
-            { icon: Brain,    title: "Facial pipeline", body: "Face mesh, blink rate, rigidity, head tremor, and micro-expression analysis." },
-            { icon: LineChart,title: "Clinical comparison", body: "Every parameter compared to standard reference values with status flags." },
-            { icon: Cpu,      title: "Three analysis modes", body: "Quick, Standard, or Precision — trade time for accuracy on demand." },
-            { icon: FlaskConical, title: "Research-grade reports", body: "Downloadable PDF with parameter tables, charts, pose overlays, and disclaimers." },
-            { icon: Shield,   title: "Private by default", body: "End-to-end encrypted uploads, RLS-protected storage, and per-user access." },
+            { icon: Activity, title: "Markerless gait pipeline", body: "Frame sampling → 33-landmark pose estimation → temporal filtering → joint angles → stride biomarkers." },
+            { icon: Brain,    title: "Facial movement module", body: "Facial landmark tracking and hypomimia-related features — pipeline in preparation, reported as not available until configured." },
+            { icon: LineChart,title: "Reference comparison", body: "Parameters compared against separately stored reference ranges with explicit provenance." },
+            { icon: Cpu,      title: "Acquisition protocols", body: "Normal walk, Timed Up and Go, side, front, and multi-angle recordings." },
+            { icon: FlaskConical, title: "Reproducible outputs", body: "Every analysis records model, feature-pipeline, and pose-estimator versions alongside CSV/JSON/PDF export." },
+            { icon: Shield,   title: "Private by default", body: "Encrypted uploads, row-level-security storage, and per-account access." },
+
           ].map((f) => (
             <div key={f.title} className="glass rounded-2xl p-6 hover:glow-primary transition">
               <div className="h-10 w-10 rounded-lg bg-primary/15 grid place-items-center">

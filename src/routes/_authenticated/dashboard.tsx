@@ -17,10 +17,31 @@ import type { AnalysisResult, ClinicalStatus, ParameterRow } from "@/lib/mock-an
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
 import { readPoseAnalysis } from "@/lib/pose-session";
 import { PoseAnalysisSection } from "@/components/gait/PoseAnalysisSection";
+import { AnalysisOverview } from "@/components/research/AnalysisOverview";
+import { VideoQualityPanel } from "@/components/research/VideoQualityPanel";
+import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
 import type { PoseAnalysis } from "@/types/gait";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  head: () => ({
+    meta: [
+      { title: "Research Dashboard — NeuroStride AI" },
+      {
+        name: "description",
+        content:
+          "Quantitative gait and movement biomarkers, data-quality metrics, and reproducibility metadata for a completed NeuroStride analysis.",
+      },
+      { property: "og:title", content: "Research Dashboard — NeuroStride AI" },
+      {
+        property: "og:description",
+        content:
+          "Quantitative gait and movement biomarkers, data-quality metrics, and reproducibility metadata for a completed NeuroStride analysis.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: DashboardPage,
 });
 
@@ -32,7 +53,10 @@ type Stored = {
   patient_gender?: string;
   media_kind: "gait" | "facial";
   media_name: string;
+  analysis_id?: string;
+  analysis_timestamp?: string;
 };
+
 
 const STATUS_COLOR: Record<ClinicalStatus, string> = {
   normal: "text-success",
@@ -141,9 +165,9 @@ function DashboardPage() {
             <Activity className="h-5 w-5 text-cyan" />
           </div>
           <div className="min-w-0">
-            <div className="text-xs uppercase tracking-[0.2em] text-cyan">Clinical Dashboard</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-cyan">Research Dashboard</div>
             <h1 className="truncate font-display text-2xl sm:text-3xl font-semibold">
-              NeuroStride Assessment
+              Movement Analysis Results
             </h1>
           </div>
         </div>
@@ -162,12 +186,28 @@ function DashboardPage() {
 
       {stored && (
         <div ref={reportRef} className="mt-8 space-y-4">
-          {/* Top row: risk gauge + health score + severity */}
+          <ResearchDisclaimer />
+
+          <AnalysisOverview
+            identity={{
+              analysisId: stored.analysis_id ?? null,
+              subjectId: stored.patient_id ?? null,
+              sessionId: null,
+              analysisTimestamp: stored.analysis_timestamp ?? null,
+              mediaName: stored.media_name,
+              mode: stored.result.mode,
+            }}
+            pose={pose}
+          />
+
+          <VideoQualityPanel pose={pose} />
+
+          {/* Model output row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <GaugeCard
-              label="Parkinson's Risk"
+              label="Gait model output"
               value={stored.result.summary.parkinsonsRisk}
-              caption={stored.result.riskLevel + " risk"}
+              caption={`${stored.result.riskLevel} — PD-associated gait features`}
               hue="risk"
             />
             <GaugeCard
@@ -178,16 +218,20 @@ function DashboardPage() {
             />
             <div className="glass gradient-border rounded-2xl p-6 flex flex-col justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-cyan">Assessment</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-cyan">Model output</div>
                 <div className="mt-2 font-display text-2xl font-semibold">
                   {stored.result.summary.severity}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Prediction confidence {(stored.result.summary.confidence * 100).toFixed(1)}%
+                  Model confidence {(stored.result.summary.confidence * 100).toFixed(1)}%
                   {stored.result.qualityScore != null
-                    ? ` · Analysis quality ${stored.result.qualityScore.toFixed(0)}%`
+                    ? ` · Data quality ${stored.result.qualityScore.toFixed(0)}%`
                     : ""}
                 </div>
+                <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+                  Uncalibrated model output, not a probability of Parkinson&apos;s disease. Face-only
+                  and multimodal model outputs are not available — those pipelines are not configured.
+                </p>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs">
                 <StatBadge n={stored.result.summary.counts.normal} label="Normal" color="success" />
@@ -196,6 +240,7 @@ function DashboardPage() {
               </div>
             </div>
           </div>
+
 
           {/* Patient info + export toolbar */}
           <div className="glass rounded-2xl p-6 print:hidden">
