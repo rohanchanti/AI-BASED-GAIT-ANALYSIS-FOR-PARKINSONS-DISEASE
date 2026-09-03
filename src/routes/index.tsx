@@ -6,14 +6,31 @@ import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
 import { ProcessingScreen } from "@/components/ProcessingScreen";
 import { PatientForm, type PatientInfo } from "@/components/PatientForm";
+import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
+import { ANALYSIS_VERSIONS, nextAnalysisId } from "@/lib/analysis-version";
 import type { AnalysisResult } from "@/lib/mock-analysis";
 import { toast } from "sonner";
 
+const TITLE = "NeuroStride AI — AI-Assisted Multimodal Parkinsonian Movement Analysis";
+const DESCRIPTION =
+  "Quantitative analysis of gait, facial movement, and motor biomarkers from video for research and clinical decision-support applications.";
+
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: LandingPage,
 });
 
 type Stage = "idle" | "patient" | "mode" | "processing" | "done";
+
 
 function LandingPage() {
   const [detected, setDetected] = useState<DetectedFile | null>(null);
