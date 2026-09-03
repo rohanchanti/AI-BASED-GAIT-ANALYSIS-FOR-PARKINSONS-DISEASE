@@ -17,10 +17,31 @@ import type { AnalysisResult, ClinicalStatus, ParameterRow } from "@/lib/mock-an
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
 import { readPoseAnalysis } from "@/lib/pose-session";
 import { PoseAnalysisSection } from "@/components/gait/PoseAnalysisSection";
+import { AnalysisOverview } from "@/components/research/AnalysisOverview";
+import { VideoQualityPanel } from "@/components/research/VideoQualityPanel";
+import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
 import type { PoseAnalysis } from "@/types/gait";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
+  head: () => ({
+    meta: [
+      { title: "Research Dashboard — NeuroStride AI" },
+      {
+        name: "description",
+        content:
+          "Quantitative gait and movement biomarkers, data-quality metrics, and reproducibility metadata for a completed NeuroStride analysis.",
+      },
+      { property: "og:title", content: "Research Dashboard — NeuroStride AI" },
+      {
+        property: "og:description",
+        content:
+          "Quantitative gait and movement biomarkers, data-quality metrics, and reproducibility metadata for a completed NeuroStride analysis.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: DashboardPage,
 });
 
@@ -32,7 +53,10 @@ type Stored = {
   patient_gender?: string;
   media_kind: "gait" | "facial";
   media_name: string;
+  analysis_id?: string;
+  analysis_timestamp?: string;
 };
+
 
 const STATUS_COLOR: Record<ClinicalStatus, string> = {
   normal: "text-success",
