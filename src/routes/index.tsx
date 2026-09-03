@@ -104,18 +104,14 @@ function LandingPage() {
           <div className="mx-auto max-w-4xl text-center">
             <div className="inline-flex items-center gap-2 rounded-full glass px-3 py-1 text-xs text-cyan">
               <Sparkles className="h-3.5 w-3.5" />
-              AI research station · Parkinson&apos;s screening
+              Research platform · quantitative movement analysis
             </div>
             <h1 className="mt-6 font-display text-4xl sm:text-6xl lg:text-7xl font-bold leading-[1.05] tracking-tight">
-              AI-powered <span className="gradient-text">Parkinson&apos;s Disease</span> detection
-              <span className="block text-foreground/80 text-3xl sm:text-4xl lg:text-5xl mt-3">
-                using Computer Vision &amp; Deep Learning
-              </span>
+              AI-Assisted <span className="gradient-text">Multimodal Parkinsonian</span> Movement Analysis
             </h1>
             <p className="mt-6 mx-auto max-w-2xl text-base sm:text-lg text-muted-foreground">
-              Upload a walking video or facial recording and receive an AI-generated assessment
-              with clinical biomechanical parameters, interactive charts, and a downloadable
-              medical-style report.
+              Quantitative analysis of gait, facial movement, and motor biomarkers from video for
+              research and clinical decision-support applications.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <a
@@ -128,24 +124,29 @@ function LandingPage() {
                 to="/research"
                 className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm hover:border-primary/60 hover:text-foreground transition"
               >
-                View research
+                Scientific basis
               </Link>
             </div>
 
+            <div className="mt-8 mx-auto max-w-2xl text-left">
+              <ResearchDisclaimer />
+            </div>
+
             {/* Stat pills */}
-            <div className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
               {[
-                { k: "27+", v: "clinical parameters" },
-                { k: "3", v: "analysis modes" },
-                { k: "2", v: "AI pipelines" },
-                { k: "&lt;10 min", v: "to full report" },
+                { k: "27+", v: "quantitative parameters" },
+                { k: "33", v: "tracked pose landmarks" },
+                { k: "5", v: "acquisition protocols" },
+                { k: "CSV · JSON · PDF", v: "research export" },
               ].map((s) => (
                 <div key={s.v} className="glass rounded-xl px-4 py-3 text-left">
-                  <div className="font-display text-2xl font-semibold gradient-text" dangerouslySetInnerHTML={{ __html: s.k }} />
+                  <div className="font-display text-2xl font-semibold gradient-text">{s.k}</div>
                   <div className="text-xs text-muted-foreground mt-1">{s.v}</div>
                 </div>
               ))}
             </div>
+
           </div>
         </div>
       </section>
