@@ -159,23 +159,25 @@ function LandingPage() {
       {/* FEATURES */}
       <section className="mx-auto max-w-7xl px-4 sm:px-6 pb-24">
         <div className="text-center max-w-2xl mx-auto">
-          <div className="text-xs uppercase tracking-[0.2em] text-cyan">Onboard systems</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-cyan">Platform modules</div>
           <h2 className="mt-2 font-display text-3xl sm:text-4xl font-semibold">
-            An AI research station in your browser
+            A quantitative movement-analysis workbench
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Every pipeline is modular and swappable — designed for future models across voice,
-            spiral drawing, tremor sensors, and multimodal fusion.
+            Every stage is modular and swappable, so models can be replaced without redesigning the
+            interface. Measurements that the pipeline cannot compute are reported as not available
+            rather than estimated.
           </p>
         </div>
         <div className="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[
-            { icon: Activity, title: "Gait pipeline", body: "Frame extraction → pose estimation → joint angles → stride features → ML prediction." },
-            { icon: Brain,    title: "Facial pipeline", body: "Face mesh, blink rate, rigidity, head tremor, and micro-expression analysis." },
-            { icon: LineChart,title: "Clinical comparison", body: "Every parameter compared to standard reference values with status flags." },
-            { icon: Cpu,      title: "Three analysis modes", body: "Quick, Standard, or Precision — trade time for accuracy on demand." },
-            { icon: FlaskConical, title: "Research-grade reports", body: "Downloadable PDF with parameter tables, charts, pose overlays, and disclaimers." },
-            { icon: Shield,   title: "Private by default", body: "End-to-end encrypted uploads, RLS-protected storage, and per-user access." },
+            { icon: Activity, title: "Markerless gait pipeline", body: "Frame sampling → 33-landmark pose estimation → temporal filtering → joint angles → stride biomarkers." },
+            { icon: Brain,    title: "Facial movement module", body: "Facial landmark tracking and hypomimia-related features — pipeline in preparation, reported as not available until configured." },
+            { icon: LineChart,title: "Reference comparison", body: "Parameters compared against separately stored reference ranges with explicit provenance." },
+            { icon: Cpu,      title: "Acquisition protocols", body: "Normal walk, Timed Up and Go, side, front, and multi-angle recordings." },
+            { icon: FlaskConical, title: "Reproducible outputs", body: "Every analysis records model, feature-pipeline, and pose-estimator versions alongside CSV/JSON/PDF export." },
+            { icon: Shield,   title: "Private by default", body: "Encrypted uploads, row-level-security storage, and per-account access." },
+
           ].map((f) => (
             <div key={f.title} className="glass rounded-2xl p-6 hover:glow-primary transition">
               <div className="h-10 w-10 rounded-lg bg-primary/15 grid place-items-center">
