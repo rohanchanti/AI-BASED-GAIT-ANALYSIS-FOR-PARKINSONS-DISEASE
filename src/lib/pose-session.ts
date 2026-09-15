@@ -27,6 +27,8 @@ export function toStorable(a: PoseAnalysisFull): PoseAnalysis {
     metrics: a.metrics,
     angles: a.angles.filter((_, i) => i % stepEvery === 0),
     events: a.events,
+    quality: a.quality,
+    validation: a.validation,
   };
 }
 
