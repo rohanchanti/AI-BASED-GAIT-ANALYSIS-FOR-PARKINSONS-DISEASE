@@ -138,6 +138,72 @@ export function exportPDF(result: AnalysisResult, patient?: PatientInfo, meta?: 
   });
   y = (doc as any).lastAutoTable.finalY + 24;
 
+  // Analysis provenance & reproducibility
+  const pose = readPoseAnalysis();
+  y = ensureSpace(doc, y, 140, margin);
+  section(doc, "Analysis Provenance & Reproducibility", y);
+  y += 26;
+  const provRows: [string, string][] = [
+    ["Analysis ID", meta?.analysisId || "Not recorded"],
+    ["Analysis date", formatAnalysisDate(meta?.analysisTimestamp ?? pose?.generatedAt ?? undefined) || "Not recorded"],
+    ["Source file", meta?.mediaName || "Not recorded"],
+    ["Platform version", ANALYSIS_VERSIONS.platform],
+    ["Gait model version", ANALYSIS_VERSIONS.gaitModel],
+    ["Feature pipeline version", ANALYSIS_VERSIONS.featurePipeline],
+    ["Pose estimator", pose ? ANALYSIS_VERSIONS.poseEstimator : "Not available — pose estimation did not run"],
+    ["Face estimator", ANALYSIS_VERSIONS.faceEstimator ?? "Not available — facial pipeline not configured"],
+    ["Recording properties",
+      pose
+        ? `${pose.video.durationSec.toFixed(1)} s · ${pose.video.sampledFps.toFixed(1)} fps sampled (${pose.video.sampledFrames} frames) · ${pose.video.width} × ${pose.video.height} px`
+        : "Not available"],
+    ["Camera view", pose ? pose.metrics.cameraView : "Not available"],
+  ];
+  autoTable(doc, {
+    startY: y,
+    body: provRows,
+    theme: "grid",
+    styles: { font: FONT, fontSize: BODY_SIZE, cellPadding: 6, textColor: 20, lineColor: 200 },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 200, fillColor: [244, 246, 250] },
+      1: { cellWidth: pageW - margin * 2 - 200 },
+    },
+    margin: { left: margin, right: margin },
+  });
+  y = (doc as any).lastAutoTable.finalY + 24;
+
+  // Data quality metrics
+  y = ensureSpace(doc, y, 140, margin);
+  section(doc, "Data Quality Metrics", y);
+  y += 26;
+  const q = pose?.quality ?? null;
+  const pctOrNA = (v: number | null | undefined) => (v == null ? "Not available" : `${v.toFixed(0)}%`);
+  const qualityRows: [string, string][] = q
+    ? [
+        ["Overall data quality", pctOrNA(q.overall)],
+        ["Pose detection confidence", pctOrNA(q.poseConfidence)],
+        ["Usable frames", pctOrNA(q.validFramePercent)],
+        ["Tracking continuity", pctOrNA(q.continuityScore)],
+        ["Full-body visibility", pctOrNA(q.bodyVisibilityScore)],
+        ["Gait-cycle sufficiency", pctOrNA(q.gaitCycleSufficiency)],
+        ["Camera stability", pctOrNA(q.videoStabilityScore)],
+        ["Complete gait cycles analysed", String(q.validCycles)],
+        ["Camera jitter (normalised)", q.cameraJitter == null ? "Not measurable" : q.cameraJitter.toFixed(4)],
+        ["Quality warnings", q.warnings.length ? q.warnings.join("; ") : "None"],
+      ]
+    : [["Data quality metrics", "Not available — no pose analysis recorded for this result."]];
+  autoTable(doc, {
+    startY: y,
+    body: qualityRows,
+    theme: "grid",
+    styles: { font: FONT, fontSize: BODY_SIZE, cellPadding: 6, textColor: 20, lineColor: 200 },
+    columnStyles: {
+      0: { fontStyle: "bold", cellWidth: 200, fillColor: [244, 246, 250] },
+      1: { cellWidth: pageW - margin * 2 - 200 },
+    },
+    margin: { left: margin, right: margin },
+  });
+  y = (doc as any).lastAutoTable.finalY + 24;
+
   // Assessment summary
   y = ensureSpace(doc, y, 120, margin);
   section(doc, "Assessment Summary", y);
