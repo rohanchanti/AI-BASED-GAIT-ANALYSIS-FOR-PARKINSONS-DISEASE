@@ -88,7 +88,7 @@ export async function exportPNG(node: HTMLElement, result: AnalysisResult) {
   a.click();
 }
 
-export function exportPDF(result: AnalysisResult, patient?: PatientInfo) {
+export function exportPDF(result: AnalysisResult, patient?: PatientInfo, meta?: ReportMeta) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
