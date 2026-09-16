@@ -258,7 +258,17 @@ function DashboardPage() {
                 {(() => {
                   const patient = { name: patientName, patientId: stored.patient_id, age, gender };
                   return <>
-                    <ExportBtn onClick={() => exportPDF(stored.result, patient)} icon={Printer} label="PDF" />
+                    <ExportBtn
+                      onClick={() =>
+                        exportPDF(stored.result, patient, {
+                          analysisId: stored.analysis_id ?? null,
+                          analysisTimestamp: stored.analysis_timestamp ?? null,
+                          mediaName: stored.media_name ?? null,
+                        })
+                      }
+                      icon={Printer}
+                      label="PDF"
+                    />
                     <ExportBtn onClick={onExportPNG} icon={ImageDown} label="PNG" />
                     <ExportBtn onClick={() => exportCSV(stored.result, patient)} icon={FileSpreadsheet} label="CSV" />
                     <ExportBtn onClick={() => exportJSON(stored.result, patient)} icon={FileJson} label="JSON" />
