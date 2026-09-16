@@ -11,6 +11,13 @@ export type PatientInfo = {
   gender?: string;
 };
 
+/** Reproducibility metadata recorded with the analysis run. */
+export type ReportMeta = {
+  analysisId?: string | null;
+  analysisTimestamp?: string | null;
+  mediaName?: string | null;
+};
+
 const HEADING_SIZE = 18;
 const BODY_SIZE = 14;
 const FONT = "times";
