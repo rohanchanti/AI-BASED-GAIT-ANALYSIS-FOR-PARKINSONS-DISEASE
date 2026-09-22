@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Activity, Brain, Cpu, LineChart, Shield, Sparkles, FlaskConical } from "lucide-react";
+import { ArrowRight, Activity, Brain, Cpu, LineChart, Shield, Sparkles, FlaskConical, UploadCloud, FileText, Mic, FileVideo, Gauge } from "lucide-react";
 import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
@@ -116,9 +116,11 @@ function LandingPage() {
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <a
                 href="#analyze"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:brightness-110 glow-primary transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground hover:brightness-110 glow-primary transition"
               >
-                Start analysis <ArrowRight className="h-4 w-4" />
+                <UploadCloud className="h-5 w-5" />
+                Start New Analysis
+                <ArrowRight className="h-4 w-4" />
               </a>
               <Link
                 to="/research"
@@ -126,6 +128,24 @@ function LandingPage() {
               >
                 Scientific basis
               </Link>
+            </div>
+
+            {/* Workflow step strip */}
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-xs sm:text-sm">
+              {[
+                { n: "1", label: "Upload / Record Data" },
+                { n: "2", label: "AI Analysis" },
+                { n: "3", label: "View Results" },
+                { n: "4", label: "Generate Report" },
+              ].map((s, i) => (
+                <span key={s.n} className="inline-flex items-center gap-2">
+                  {i > 0 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                  <span className="inline-flex items-center gap-2 rounded-full glass px-3 py-1.5">
+                    <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/20 font-display text-[10px] font-bold text-cyan">{s.n}</span>
+                    <span className="text-foreground/80">{s.label}</span>
+                  </span>
+                </span>
+              ))}
             </div>
 
             <div className="mt-8 mx-auto max-w-2xl text-left">
@@ -154,6 +174,68 @@ function LandingPage() {
       {/* UPLOAD */}
       <section id="analyze" className="mx-auto max-w-5xl px-4 sm:px-6 -mt-4 pb-24 scroll-mt-24">
         <UploadZone onDetected={onDetected} />
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section className="mx-auto max-w-6xl px-4 sm:px-6 pb-24">
+        <div className="text-center max-w-2xl mx-auto">
+          <div className="text-xs uppercase tracking-[0.2em] text-cyan">How it works</div>
+          <h2 className="mt-2 font-display text-3xl sm:text-4xl font-semibold">
+            From recording to report in four steps
+          </h2>
+          <p className="mt-3 text-muted-foreground">
+            The analysis runs silently in the background — you only choose a file, and the platform
+            handles the rest.
+          </p>
+        </div>
+
+        <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { icon: UploadCloud, n: "1", title: "Upload / Record Data", body: "Drag in or select a walking or facial recording. The media type is detected automatically." },
+            { icon: Brain, n: "2", title: "AI Analysis", body: "The pipeline analyses the recording in the background — pose tracking, gait events, and quality checks." },
+            { icon: LineChart, n: "3", title: "View Results", body: "See quantitative parameters, charts, and model output on your research dashboard." },
+            { icon: FileText, n: "4", title: "Generate Report", body: "Export a research-grade report as PDF, or the data as CSV, JSON, or PNG." },
+          ].map((s) => (
+            <div key={s.n} className="glass rounded-2xl p-6 relative hover:glow-primary transition">
+              <span className="absolute top-4 right-5 font-display text-3xl font-bold text-foreground/10">{s.n}</span>
+              <div className="h-10 w-10 rounded-lg bg-primary/15 grid place-items-center">
+                <s.icon className="h-5 w-5 text-cyan" />
+              </div>
+              <div className="mt-4 font-display text-lg font-semibold">{s.title}</div>
+              <p className="mt-1 text-sm text-muted-foreground">{s.body}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* WHAT YOU CAN PROVIDE */}
+        <div className="mt-12 glass rounded-2xl p-6 sm:p-8">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="h-9 w-9 rounded-lg bg-primary/15 grid place-items-center">
+              <Gauge className="h-4.5 w-4.5 text-cyan" />
+            </div>
+            <div>
+              <h3 className="font-display text-xl font-semibold">What you can provide</h3>
+              <p className="text-xs text-muted-foreground">Each input routes to its matching analysis pipeline.</p>
+            </div>
+          </div>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-border/60 p-4 text-left">
+              <FileVideo className="h-5 w-5 text-cyan" />
+              <div className="mt-2 text-sm font-medium">Gait video</div>
+              <div className="text-xs text-muted-foreground mt-1">Walking recording (MP4, MOV, AVI) — stride, pose & movement analysis.</div>
+            </div>
+            <div className="rounded-xl border border-border/60 p-4 text-left">
+              <Sparkles className="h-5 w-5 text-purple" />
+              <div className="mt-2 text-sm font-medium">Facial video</div>
+              <div className="text-xs text-muted-foreground mt-1">Facial recording (PNG, JPG supported) — uploaded with your session; facial metrics pipeline in preparation.</div>
+            </div>
+            <Link to="/voice-analysis" className="rounded-xl border border-border/60 p-4 text-left hover:border-primary/60 transition">
+              <Mic className="h-5 w-5 text-purple" />
+              <div className="mt-2 text-sm font-medium">Voice recording <span className="text-[10px] uppercase tracking-wider text-cyan ml-1">Voice AI</span></div>
+              <div className="text-xs text-muted-foreground mt-1">Speech sample — analysed by the acoustic-biomarker model on the Voice AI page.</div>
+            </Link>
+          </div>
+        </div>
       </section>
 
       {/* FEATURES */}
