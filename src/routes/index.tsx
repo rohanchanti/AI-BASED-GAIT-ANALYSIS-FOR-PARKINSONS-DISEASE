@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Activity, Brain, Cpu, LineChart, Shield, Sparkles, FlaskConical } from "lucide-react";
+import { ArrowRight, Activity, Brain, Cpu, LineChart, Shield, Sparkles, FlaskConical, UploadCloud, FileText, Mic, FileVideo, Gauge } from "lucide-react";
 import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
@@ -116,9 +116,11 @@ function LandingPage() {
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <a
                 href="#analyze"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground hover:brightness-110 glow-primary transition"
+                className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground hover:brightness-110 glow-primary transition"
               >
-                Start analysis <ArrowRight className="h-4 w-4" />
+                <UploadCloud className="h-5 w-5" />
+                Start New Analysis
+                <ArrowRight className="h-4 w-4" />
               </a>
               <Link
                 to="/research"
@@ -126,6 +128,24 @@ function LandingPage() {
               >
                 Scientific basis
               </Link>
+            </div>
+
+            {/* Workflow step strip */}
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-xs sm:text-sm">
+              {[
+                { n: "1", label: "Upload / Record Data" },
+                { n: "2", label: "AI Analysis" },
+                { n: "3", label: "View Results" },
+                { n: "4", label: "Generate Report" },
+              ].map((s, i) => (
+                <span key={s.n} className="inline-flex items-center gap-2">
+                  {i > 0 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                  <span className="inline-flex items-center gap-2 rounded-full glass px-3 py-1.5">
+                    <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/20 font-display text-[10px] font-bold text-cyan">{s.n}</span>
+                    <span className="text-foreground/80">{s.label}</span>
+                  </span>
+                </span>
+              ))}
             </div>
 
             <div className="mt-8 mx-auto max-w-2xl text-left">
