@@ -17,6 +17,7 @@ import type { AnalysisResult, ClinicalStatus, ParameterRow } from "@/lib/mock-an
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
 import { readPoseAnalysis } from "@/lib/pose-session";
 import { PoseAnalysisSection } from "@/components/gait/PoseAnalysisSection";
+import { GaitVisualization } from "@/components/gait/GaitVisualization";
 import { AnalysisOverview } from "@/components/research/AnalysisOverview";
 import { VideoQualityPanel } from "@/components/research/VideoQualityPanel";
 import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
@@ -303,6 +304,11 @@ function DashboardPage() {
               <div className="text-xs uppercase tracking-[0.2em] text-cyan mb-2">Radar — normalized to healthy = 100</div>
               <ParamRadar result={stored.result} />
             </div>
+          </div>
+
+          {/* Gait results visualization */}
+          <div className="glass rounded-2xl p-6">
+            <GaitVisualization result={stored.result} pose={pose} />
           </div>
 
           {/* MediaPipe pose analysis (real landmark geometry) */}

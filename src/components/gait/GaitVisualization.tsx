@@ -309,7 +309,7 @@ export function GaitVisualization({
                     aria-hidden
                   />
                   <span>
-                    {row.name}: {row.patient.toFixed(2)} {row.unit} vs reference {row.standardLabel ?? ""} — {row.interpretation}
+                    {row.name}: {row.patient.toFixed(2)} {row.unit} vs reference {row.range[0]}–{row.range[1]} {row.unit} — {row.interpretation}
                   </span>
                 </li>
               ))}
