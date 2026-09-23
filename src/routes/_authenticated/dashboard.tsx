@@ -21,6 +21,7 @@ import { GaitVisualization } from "@/components/gait/GaitVisualization";
 import { AnalysisOverview } from "@/components/research/AnalysisOverview";
 import { VideoQualityPanel } from "@/components/research/VideoQualityPanel";
 import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
+import { AIAnalysisResults } from "@/components/research/AIAnalysisResults";
 import type { PoseAnalysis } from "@/types/gait";
 import { toast } from "sonner";
 
@@ -289,6 +290,16 @@ function DashboardPage() {
 
           {/* AI Clinical Summary */}
           <ClinicalSummaryCard result={stored.result} />
+
+          {/* AI Analysis Results presentation section */}
+          <div className="glass rounded-2xl p-6">
+            <AIAnalysisResults
+              result={stored.result}
+              pose={pose}
+              analysisId={stored.analysis_id ?? null}
+              analysisTimestamp={stored.analysis_timestamp ?? null}
+            />
+          </div>
 
           {/* Charts row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
