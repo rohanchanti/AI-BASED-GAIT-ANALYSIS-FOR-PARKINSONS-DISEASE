@@ -55,12 +55,14 @@ export function AIAnalysisResults({ result, pose, analysisId, analysisTimestamp 
 
   if (pose) {
     push("Step count", String(pose.metrics.stepCount), "pose");
-    push("Valid gait cycles", String(pose.cycles.length), "pose");
-    push("Left step time", `${fmt(pose.metrics.left.stepTimeMean, 3)} s`, "pose");
-    push("Right step time", `${fmt(pose.metrics.right.stepTimeMean, 3)} s`, "pose");
-    push("Stance phase (L / R)", `${fmt(pose.metrics.left.stancePct, 1)}% / ${fmt(pose.metrics.right.stancePct, 1)}%`, "pose");
-    push("Double support", `${fmt(pose.metrics.doubleSupportPct, 1)}%`, "pose");
-    push("Pose symmetry index", fmt(pose.metrics.overallSymmetryIndex, 3), "pose");
+    if (pose.cycles) push("Valid gait cycles", String(pose.cycles.length), "pose");
+    if (pose.metrics.cadence != null) push("Pose cadence", `${fmt(pose.metrics.cadence, 1)} steps/min`, "pose");
+    push("Left step time", `${fmt(pose.metrics.leftStepTime, 3)} s`, "pose");
+    push("Right step time", `${fmt(pose.metrics.rightStepTime, 3)} s`, "pose");
+    if (pose.metrics.stancePct != null) push("Stance phase", `${fmt(pose.metrics.stancePct, 1)}%`, "pose");
+    if (pose.metrics.doubleSupportPct != null)
+      push("Double support", `${fmt(pose.metrics.doubleSupportPct, 1)}%`, "pose");
+    push("Pose symmetry index", fmt(pose.metrics.overallSymmetryIndex, 1), "pose");
   }
   const cadence = measurement("cadence");
   if (cadence) push("Cadence", `${fmt(cadence.patient, 1)} steps/min`, "pixel");
