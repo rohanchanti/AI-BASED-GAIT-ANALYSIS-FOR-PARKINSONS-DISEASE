@@ -22,6 +22,7 @@ import { AnalysisOverview } from "@/components/research/AnalysisOverview";
 import { VideoQualityPanel } from "@/components/research/VideoQualityPanel";
 import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
 import { AIAnalysisResults } from "@/components/research/AIAnalysisResults";
+import { FacialAnalysisResults } from "@/components/facial/FacialAnalysisResults";
 import type { PoseAnalysis } from "@/types/gait";
 import { toast } from "sonner";
 
@@ -202,10 +203,10 @@ function DashboardPage() {
             pose={pose}
           />
 
-          <VideoQualityPanel pose={pose} />
+          {stored.result.kind === "gait" && <VideoQualityPanel pose={pose} />}
 
           {/* Model output row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {stored.result.kind === "gait" && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <GaugeCard
               label="Gait model output"
               value={stored.result.summary.parkinsonsRisk}
@@ -241,7 +242,7 @@ function DashboardPage() {
                 <StatBadge n={stored.result.summary.counts.abnormal} label="Abnormal" color="danger" />
               </div>
             </div>
-          </div>
+          </div>}
 
 
           {/* Patient info + export toolbar */}
@@ -289,20 +290,26 @@ function DashboardPage() {
           </div>
 
           {/* AI Clinical Summary */}
-          <ClinicalSummaryCard result={stored.result} />
+          {stored.result.kind === "gait" && <ClinicalSummaryCard result={stored.result} />}
 
           {/* AI Analysis Results presentation section */}
-          <div className="glass rounded-2xl p-6">
+          {stored.result.kind === "gait" && <div className="glass rounded-2xl p-6">
             <AIAnalysisResults
               result={stored.result}
               pose={pose}
               analysisId={stored.analysis_id ?? null}
               analysisTimestamp={stored.analysis_timestamp ?? null}
             />
-          </div>
+          </div>}
+
+          {stored.result.kind === "facial" && (
+            <div className="glass rounded-2xl p-6">
+              <FacialAnalysisResults result={stored.result} />
+            </div>
+          )}
 
           {/* Charts row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {stored.result.kind === "gait" && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="glass rounded-2xl p-6 lg:col-span-1 min-h-[320px]">
               <div className="text-xs uppercase tracking-[0.2em] text-cyan mb-2">Parameter Distribution</div>
               <StatusPie result={stored.result} />
@@ -315,15 +322,15 @@ function DashboardPage() {
               <div className="text-xs uppercase tracking-[0.2em] text-cyan mb-2">Radar — normalized to healthy = 100</div>
               <ParamRadar result={stored.result} />
             </div>
-          </div>
+          </div>}
 
           {/* Gait results visualization */}
-          <div className="glass rounded-2xl p-6">
+          {stored.result.kind === "gait" && <div className="glass rounded-2xl p-6">
             <GaitVisualization result={stored.result} pose={pose} />
-          </div>
+          </div>}
 
           {/* MediaPipe pose analysis (real landmark geometry) */}
-          {pose && (
+          {stored.result.kind === "gait" && pose && (
             <div className="glass rounded-2xl p-6 overflow-x-auto">
               <PoseAnalysisSection
                 analysis={pose}

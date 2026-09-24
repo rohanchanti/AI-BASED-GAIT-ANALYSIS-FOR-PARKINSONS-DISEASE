@@ -283,6 +283,7 @@ function LandingPage() {
       )}
       {stage === "mode" && (
         <AnalysisModePicker
+          kind={detected?.kind}
           onSelect={onPickMode}
           onCancel={() => {
             setDetected(null);
