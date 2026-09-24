@@ -345,10 +345,10 @@ function DashboardPage() {
           )}
 
           {/* Clinical comparison table */}
-          <div className="glass rounded-2xl p-6 overflow-x-auto">
+          {stored.result.kind === "gait" && <div className="glass rounded-2xl p-6 overflow-x-auto">
             <div className="text-xs uppercase tracking-[0.2em] text-cyan mb-3">Clinical Comparison</div>
             <ClinicalTable rows={stored.result.parameters} />
-          </div>
+          </div>}
 
           {/* Reference + disclaimer */}
           <div className="glass rounded-2xl p-6 text-xs text-muted-foreground leading-relaxed">
