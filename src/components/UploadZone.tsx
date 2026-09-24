@@ -88,8 +88,13 @@ export function UploadZone({ onDetected }: Props) {
           <div className="rounded-xl border border-border/60 p-3 flex items-center gap-3">
             <ImageIcon className="h-5 w-5 text-purple shrink-0" />
             <div className="min-w-0">
-              <div className="text-sm font-medium">Facial recording</div>
-              <div className="text-xs text-muted-foreground truncate">Blink, rigidity, tremor</div>
+              <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                Facial image
+                <span className="rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-warning">
+                  Demo
+                </span>
+              </div>
+              <div className="text-xs text-muted-foreground truncate">PNG or JPG · example results only</div>
             </div>
           </div>
         </div>

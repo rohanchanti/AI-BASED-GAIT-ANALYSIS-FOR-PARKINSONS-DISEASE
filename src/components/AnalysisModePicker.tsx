@@ -63,20 +63,26 @@ const modes: {
 interface Props {
   onSelect: (m: AnalysisMode) => void;
   onCancel?: () => void;
+  kind?: "gait" | "facial";
 }
 
-export function AnalysisModePicker({ onSelect, onCancel }: Props) {
+export function AnalysisModePicker({ onSelect, onCancel, kind = "gait" }: Props) {
+  const isFacial = kind === "facial";
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/70 backdrop-blur-md animate-in fade-in">
       <div className="relative w-full max-w-5xl rounded-3xl glass gradient-border p-6 sm:p-8 max-h-[90vh] overflow-auto">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-cyan">Choose analysis mode</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-cyan">
+              {isFacial ? "Facial analysis" : "Choose analysis mode"}
+            </div>
             <h2 className="mt-1 font-display text-2xl sm:text-3xl font-semibold">
-              Select clinical gait protocol
+              {isFacial ? "Run Facial Analysis" : "Select clinical gait protocol"}
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Each mode adapts calculations to the recording setup.
+              {isFacial
+                ? "The current facial module presents clearly labeled example results; image-derived facial measurements are not yet available."
+                : "Each mode adapts calculations to the recording setup."}
             </p>
           </div>
           {onCancel && (
@@ -89,8 +95,22 @@ export function AnalysisModePicker({ onSelect, onCancel }: Props) {
           )}
         </div>
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {modes.map((m) => {
+        {isFacial ? (
+          <div className="mt-6 rounded-2xl border border-warning/30 bg-warning/5 p-5">
+            <div className="text-xs uppercase tracking-wider text-warning">Demo / example data</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Continue to view the existing facial-results demonstration. It does not inspect facial landmarks or produce a diagnosis.
+            </p>
+            <button
+              onClick={() => onSelect("quick")}
+              className="mt-5 inline-flex items-center rounded-xl bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition hover:brightness-110 glow-primary"
+            >
+              Run Facial Analysis
+            </button>
+          </div>
+        ) : (
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {modes.map((m) => {
             const Icon = m.icon;
             return (
               <button
@@ -109,8 +129,9 @@ export function AnalysisModePicker({ onSelect, onCancel }: Props) {
                 </div>
               </button>
             );
-          })}
-        </div>
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
