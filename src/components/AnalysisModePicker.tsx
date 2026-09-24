@@ -129,7 +129,7 @@ export function AnalysisModePicker({ onSelect, onCancel, kind = "gait" }: Props)
                 </div>
               </button>
             );
-            )})}
+            })}
           </div>
         )}
       </div>
