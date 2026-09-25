@@ -8,10 +8,14 @@ import {
   Sparkles,
   RotateCcw,
   Waves,
+  AudioLines,
+  ClipboardList,
 } from "lucide-react";
 import {
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   Tooltip,
@@ -38,8 +42,15 @@ export const Route = createFileRoute("/_authenticated/voice-analysis")({
       {
         name: "description",
         content:
-          "Real-time Parkinson's screening from 22 acoustic voice biomarkers using a Random Forest model trained on the UCI Parkinson's dataset.",
+          "Research-oriented voice-characteristic analysis from 22 supplied acoustic biomarkers using a Random Forest model trained on the UCI Parkinson's dataset.",
       },
+      { property: "og:title", content: "Voice Biomarker Analysis · NeuroStride AI" },
+      {
+        property: "og:description",
+        content: "Research-oriented analysis of supplied acoustic voice biomarkers and observed voice characteristics.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
 });
@@ -52,6 +63,7 @@ function VoiceAnalysisPage() {
     label: 0 | 1;
     probability: number;
   } | null>(null);
+  const [sampleSource, setSampleSource] = useState<"healthy" | "parkinsons" | null>(null);
 
   const stats = useMemo(() => getFeatureStats(), []);
   const dataset = useMemo(() => loadDataset(), []);
@@ -68,6 +80,7 @@ function VoiceAnalysisPage() {
       const init: Record<string, string> = {};
       FEATURE_NAMES.forEach((n, i) => (init[n] = String(sample[i])));
       setValues(init);
+      setSampleSource("healthy");
     }, 50);
     return () => clearTimeout(t);
   }, []);
@@ -77,6 +90,7 @@ function VoiceAnalysisPage() {
     const next: Record<string, string> = {};
     FEATURE_NAMES.forEach((n, i) => (next[n] = String(row[i])));
     setValues(next);
+    setSampleSource(kind);
     setPrediction(null);
   };
 
@@ -88,6 +102,13 @@ function VoiceAnalysisPage() {
 
   const reset = () => {
     setValues({});
+    setSampleSource(null);
+    setPrediction(null);
+  };
+
+  const setFeatureValue = (name: string, value: string) => {
+    setValues((current) => ({ ...current, [name]: value }));
+    setSampleSource(null);
     setPrediction(null);
   };
 
@@ -100,6 +121,69 @@ function VoiceAnalysisPage() {
     [model],
   );
 
+  const measurementGroups = useMemo(() => {
+    const read = (name: (typeof FEATURE_NAMES)[number]) => Number(values[name]);
+    const format = (value: number, digits = 3) =>
+      Number.isFinite(value) ? value.toFixed(digits) : "Not available";
+
+    return [
+      {
+        label: "Fundamental frequency",
+        value: `${format(read("MDVP:Fo(Hz)"), 2)} Hz`,
+        detail: `Observed range ${format(read("MDVP:Flo(Hz)"), 2)}–${format(read("MDVP:Fhi(Hz)"), 2)} Hz`,
+      },
+      {
+        label: "Pitch variation",
+        value: `${format(read("MDVP:Jitter(%)"), 4)}%`,
+        detail: `Absolute jitter ${format(read("MDVP:Jitter(Abs)"), 6)}`,
+      },
+      {
+        label: "Amplitude variation",
+        value: format(read("MDVP:Shimmer"), 4),
+        detail: `Shimmer ${format(read("MDVP:Shimmer(dB)"), 3)} dB`,
+      },
+      {
+        label: "Temporal / nonlinear variation",
+        value: `RPDE ${format(read("RPDE"), 3)}`,
+        detail: `DFA ${format(read("DFA"), 3)} · PPE ${format(read("PPE"), 3)}`,
+      },
+    ];
+  }, [values]);
+
+  const voiceProfile = useMemo(() => {
+    const keys = ["MDVP:Fo(Hz)", "MDVP:Jitter(%)", "MDVP:Shimmer", "HNR", "RPDE", "DFA", "PPE"] as const;
+    return keys.map((key) => {
+      const stat = stats.find((item) => item.name === key);
+      const value = Number(values[key]);
+      const span = stat ? stat.max - stat.min : 0;
+      const normalized = stat && Number.isFinite(value) && span > 0
+        ? Math.max(0, Math.min(100, ((value - stat.min) / span) * 100))
+        : 0;
+      return {
+        name: key.replace("MDVP:", "").replace("(Hz)", ""),
+        value: Number(normalized.toFixed(1)),
+      };
+    });
+  }, [stats, values]);
+
+  const observedCharacteristics = useMemo(() => {
+    const comparisons = [
+      { key: "MDVP:Fo(Hz)", label: "fundamental frequency" },
+      { key: "MDVP:Jitter(%)", label: "pitch variation" },
+      { key: "MDVP:Shimmer", label: "amplitude variation" },
+      { key: "HNR", label: "harmonic-to-noise ratio" },
+    ] as const;
+    return comparisons.map(({ key, label }) => {
+      const stat = stats.find((item) => item.name === key);
+      const value = Number(values[key]);
+      if (!stat || !Number.isFinite(value)) return `${label}: not available`;
+      const difference = value - stat.mean;
+      const tolerance = Math.max((stat.max - stat.min) * 0.1, Math.abs(stat.mean) * 0.05);
+      const position = Math.abs(difference) <= tolerance ? "near" : difference > 0 ? "above" : "below";
+      return `${label}: ${position} the dataset mean`;
+    });
+  }, [stats, values]);
+
   return (
     <div className="min-h-screen bg-background text-foreground pt-24 pb-16 px-4 sm:px-6">
       <div className="mx-auto max-w-7xl space-y-8">
@@ -109,12 +193,12 @@ function VoiceAnalysisPage() {
               <Waves className="h-3.5 w-3.5" /> Voice biomarker engine
             </div>
             <h1 className="mt-2 font-display text-3xl sm:text-4xl font-semibold">
-              Real-time <span className="gradient-text">Parkinson's</span> voice screening
+              Voice <span className="gradient-text">characteristic analysis</span>
             </h1>
             <p className="text-sm text-muted-foreground mt-2 max-w-2xl">
-              Random Forest classifier trained live in your browser on the UCI Parkinson's
-              dataset (Little et al., 2007). Enter 22 acoustic biomarkers or load a sample to
-              get a real-time prediction.
+              Enter 22 precomputed acoustic biomarkers or load a clearly labeled example, then
+              use the research model to examine voice-pattern characteristics. Audio upload and
+              recording are not available in the current analysis system.
             </p>
           </div>
           <div className="rounded-2xl glass gradient-border p-4 min-w-[240px]">
@@ -143,6 +227,26 @@ function VoiceAnalysisPage() {
           </div>
         </header>
 
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3" aria-label="Voice analysis workflow">
+          {[
+            { step: "1", title: "Provide measurements", body: "Enter acoustic biomarkers or load an example dataset row." },
+            { step: "2", title: "Analyze Voice", body: "Apply the existing research classifier to the supplied values." },
+            { step: "3", title: "Review findings", body: "Inspect measurements, observed characteristics, and interpretation." },
+          ].map((item) => (
+            <div key={item.step} className="glass rounded-2xl border border-border/60 p-4">
+              <div className="flex items-start gap-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/15 text-xs font-semibold text-cyan">
+                  {item.step}
+                </span>
+                <div>
+                  <div className="text-sm font-medium">{item.title}</div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.body}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Feature form */}
           <section className="lg:col-span-2 rounded-3xl glass gradient-border p-6">
@@ -150,10 +254,10 @@ function VoiceAnalysisPage() {
               <div>
                 <div className="font-display text-lg font-semibold flex items-center gap-2">
                   <Brain className="h-5 w-5 text-primary" />
-                  Acoustic biomarkers
+                  Voice measurements
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  22 MDVP / Jitter / Shimmer / non-linear features
+                  22 supplied MDVP, jitter, shimmer, and nonlinear acoustic features
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -161,13 +265,13 @@ function VoiceAnalysisPage() {
                   onClick={() => loadSample("healthy")}
                   className="rounded-lg border border-success/40 text-success px-3 py-2 text-xs hover:bg-success/10"
                 >
-                  Load healthy sample
+                  Load healthy example
                 </button>
                 <button
                   onClick={() => loadSample("parkinsons")}
                   className="rounded-lg border border-danger/40 text-danger px-3 py-2 text-xs hover:bg-danger/10"
                 >
-                  Load PD sample
+                  Load Parkinson's example
                 </button>
                 <button
                   onClick={reset}
@@ -195,9 +299,7 @@ function VoiceAnalysisPage() {
                       type="number"
                       step="any"
                       value={values[name] ?? ""}
-                      onChange={(e) =>
-                        setValues((v) => ({ ...v, [name]: e.target.value }))
-                      }
+                      onChange={(e) => setFeatureValue(name, e.target.value)}
                       placeholder={s.mean.toFixed(4)}
                       className="mt-1 w-full rounded-lg bg-background/60 border border-border/70 px-3 py-2 text-sm font-mono tabular-nums focus:outline-none focus:border-primary/70 focus:ring-1 focus:ring-primary/40"
                     />
@@ -206,31 +308,40 @@ function VoiceAnalysisPage() {
               })}
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-xs text-muted-foreground">
+                {sampleSource ? (
+                  <span className="rounded-full border border-warning/40 bg-warning/5 px-2.5 py-1 text-warning">
+                    DEMO / EXAMPLE DATA · {sampleSource === "healthy" ? "healthy" : "Parkinson's"} dataset sample
+                  </span>
+                ) : (
+                  <span className="rounded-full border border-border px-2.5 py-1">Supplied measurements</span>
+                )}
+              </div>
               <button
                 onClick={runPrediction}
                 disabled={training || !model}
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:brightness-110 disabled:opacity-50 glow-primary"
               >
                 <Sparkles className="h-4 w-4" />
-                Run prediction
+                Analyze Voice
               </button>
             </div>
           </section>
 
           {/* Prediction panel */}
           <aside className="rounded-3xl glass gradient-border p-6 flex flex-col">
-            <div className="font-display text-lg font-semibold">Prediction</div>
+            <div className="font-display text-lg font-semibold">AI Interpretation</div>
             <div className="text-xs text-muted-foreground">
-              Live inference from the trained Random Forest
+              Research classification from the existing Random Forest model
             </div>
 
             {!prediction ? (
               <div className="mt-8 flex-1 grid place-items-center text-center text-sm text-muted-foreground">
                 <div>
                   <Activity className="h-8 w-8 text-cyan/70 mx-auto mb-3" />
-                  Enter voice biomarkers and press <br />
-                  <span className="text-foreground">Run prediction</span>.
+                  Provide voice measurements and select <br />
+                  <span className="text-foreground">Analyze Voice</span>.
                 </div>
               </div>
             ) : (
@@ -254,15 +365,15 @@ function VoiceAnalysisPage() {
                       }`}
                     >
                       {prediction.label === 1
-                        ? "Parkinson's indicators detected"
-                        : "No Parkinson's indicators"}
+                        ? "Pattern closer to the positive research class"
+                        : "Pattern closer to the comparison research class"}
                     </span>
                   </div>
                   <div className="mt-4 font-display text-5xl font-bold gradient-text tabular-nums">
                     {(prediction.probability * 100).toFixed(1)}%
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
-                    Estimated probability of Parkinson's (positive class)
+                    Uncalibrated model score for the positive research class
                   </div>
 
                   <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-white/10">
@@ -275,6 +386,15 @@ function VoiceAnalysisPage() {
                       style={{ width: `${prediction.probability * 100}%` }}
                     />
                   </div>
+                </div>
+
+                <div className="rounded-xl border border-border/60 p-4">
+                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                    Research interpretation
+                  </div>
+                  <p className="mt-2 text-sm leading-relaxed text-foreground/85">
+                    The supplied acoustic feature pattern is more similar to the model's {prediction.label === 1 ? "positive" : "comparison"} training class. This reflects statistical similarity within the UCI dataset, not a clinical finding or diagnosis.
+                  </p>
                 </div>
 
                 {model && (
@@ -298,6 +418,71 @@ function VoiceAnalysisPage() {
               </div>
             )}
           </aside>
+        </div>
+
+        <section className="rounded-3xl glass gradient-border p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="font-display text-lg font-semibold flex items-center gap-2">
+                <ClipboardList className="h-5 w-5 text-primary" />
+                Available voice measurements
+              </div>
+              <p className="text-xs text-muted-foreground">Values currently supplied to the analysis model.</p>
+            </div>
+            <span className={`rounded-full border px-2.5 py-1 text-[10px] uppercase tracking-wider ${sampleSource ? "border-warning/40 bg-warning/5 text-warning" : "border-border text-muted-foreground"}`}>
+              {sampleSource ? "Demo / example data" : "Supplied measurements"}
+            </span>
+          </div>
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {measurementGroups.map((measurement) => (
+              <div key={measurement.label} className="rounded-xl border border-border/60 bg-background/40 p-4">
+                <div className="text-xs text-muted-foreground">{measurement.label}</div>
+                <div className="mt-2 font-mono text-lg tabular-nums">{measurement.value}</div>
+                <div className="mt-1 text-[11px] text-muted-foreground">{measurement.detail}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <section className="rounded-3xl glass gradient-border p-6">
+            <div className="font-display text-lg font-semibold flex items-center gap-2">
+              <AudioLines className="h-5 w-5 text-cyan" /> Voice feature profile
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Relative position within the UCI dataset range. This is not an audio waveform.
+            </p>
+            <div className="mt-5 h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={voiceProfile} margin={{ left: 4, right: 10, top: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                  <XAxis dataKey="name" stroke="rgba(255,255,255,0.5)" tick={{ fontSize: 10 }} />
+                  <YAxis domain={[0, 100]} stroke="rgba(255,255,255,0.5)" tick={{ fontSize: 10 }} unit="%" />
+                  <Tooltip
+                    formatter={(value) => [`${Number(value).toFixed(1)}%`, "Dataset-range position"]}
+                    contentStyle={{ background: "rgba(5,8,22,0.9)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
+                  />
+                  <Line type="monotone" dataKey="value" stroke="hsl(var(--cyan))" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+
+          <section className="rounded-3xl glass gradient-border p-6">
+            <div className="font-display text-lg font-semibold">Observed Voice Characteristics</div>
+            <p className="text-xs text-muted-foreground">Descriptive comparison with this research dataset only.</p>
+            <div className="mt-5 space-y-3">
+              {observedCharacteristics.map((characteristic) => (
+                <div key={characteristic} className="flex items-start gap-2 rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-sm">
+                  <Waves className="mt-0.5 h-4 w-4 shrink-0 text-cyan" />
+                  <span className="capitalize">{characteristic}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+              Speech duration and absolute voice intensity are not shown because the current system does not calculate them.
+            </p>
+          </section>
         </div>
 
         {/* Feature importance + dataset info */}
@@ -377,8 +562,8 @@ function VoiceAnalysisPage() {
         </div>
 
         <p className="text-[11px] text-muted-foreground text-center max-w-3xl mx-auto">
-          Research/educational tool. Not a medical device — predictions are not a substitute for
-          professional diagnosis by a qualified neurologist.
+          Research and decision-support tool. This analysis describes acoustic characteristics and
+          model similarity only; it does not diagnose Parkinson's disease or any other condition.
         </p>
       </div>
     </div>
