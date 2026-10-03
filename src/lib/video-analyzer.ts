@@ -1,3 +1,4 @@
+import { resolveVideoDuration } from "@/lib/media-duration";
 /**
  * Real-time video motion analyzer.
  *

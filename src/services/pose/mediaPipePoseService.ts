@@ -1,3 +1,4 @@
+import { resolveVideoDuration } from "@/lib/media-duration";
 /**
  * MediaPipe Tasks Vision — Pose Landmarker service.
  *
