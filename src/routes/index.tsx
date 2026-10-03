@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Activity, Brain, Cpu, LineChart, Shield, Sparkles, FlaskConical, UploadCloud, FileText, Mic, FileVideo, Gauge } from "lucide-react";
+import { ArrowRight, Activity, Brain, Cpu, LineChart, Shield, Sparkles, FlaskConical, UploadCloud, FileText, Mic, FileVideo, Gauge, Check, ListChecks, ScanFace } from "lucide-react";
 import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
@@ -10,6 +10,73 @@ import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
 import { ANALYSIS_VERSIONS, nextAnalysisId } from "@/lib/analysis-version";
 import type { AnalysisResult } from "@/lib/mock-analysis";
 import { toast } from "sonner";
+
+const RECORDING_GUIDELINES: { title: string; icon: typeof FileVideo; tips: string[] }[] = [
+  {
+    title: "Gait recording",
+    icon: FileVideo,
+    tips: [
+      "Full body should remain visible.",
+      "Camera should remain stationary.",
+      "Use adequate lighting.",
+      "Record several walking cycles.",
+      "Avoid objects blocking the legs.",
+      "Keep the walking path visible.",
+    ],
+  },
+  {
+    title: "Facial recording",
+    icon: ScanFace,
+    tips: [
+      "Face should remain clearly visible.",
+      "Use adequate lighting.",
+      "Keep the face approximately centered.",
+      "Avoid excessive head movement.",
+    ],
+  },
+  {
+    title: "Voice recording",
+    icon: Mic,
+    tips: [
+      "Use a quiet environment.",
+      "Keep the microphone at a consistent distance.",
+      "Record clear speech.",
+      "Avoid strong background noise.",
+    ],
+  },
+];
+
+function RecordingGuidelines() {
+  return (
+    <div className="glass rounded-2xl p-6 mb-6">
+      <div className="flex items-center gap-2">
+        <ListChecks className="h-5 w-5 text-cyan" />
+        <h3 className="font-display text-lg font-semibold">Recording Guidelines</h3>
+      </div>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Follow these tips before recording or uploading for the best analysis quality.
+      </p>
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {RECORDING_GUIDELINES.map((g) => (
+          <div key={g.title} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex items-center gap-2">
+              <g.icon className="h-4 w-4 text-cyan" />
+              <span className="text-sm font-semibold text-foreground/90">{g.title}</span>
+            </div>
+            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+              {g.tips.map((t) => (
+                <li key={t} className="flex gap-1.5">
+                  <Check className="h-3 w-3 mt-0.5 shrink-0 text-success" />
+                  <span>{t}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const TITLE = "NeuroStride AI — AI-Assisted Multimodal Parkinsonian Movement Analysis";
 const DESCRIPTION =
@@ -173,6 +240,7 @@ function LandingPage() {
 
       {/* UPLOAD */}
       <section id="analyze" className="mx-auto max-w-5xl px-4 sm:px-6 -mt-4 pb-24 scroll-mt-24">
+        <RecordingGuidelines />
         <UploadZone onDetected={onDetected} />
       </section>
 
