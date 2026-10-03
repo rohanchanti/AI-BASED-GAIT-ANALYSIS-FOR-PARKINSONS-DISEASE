@@ -6,10 +6,12 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
   PieChart, Pie, Cell, Legend,
+  LineChart, Line,
 } from "recharts";
 import {
   Activity, Sparkles, User, LogOut,
   FileDown, FileJson, FileSpreadsheet, ImageDown, Printer,
+  CheckCircle2, Footprints, ScanFace, Mic2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { saveReport, listReports } from "@/lib/reports.functions";
@@ -58,6 +60,17 @@ type Stored = {
   media_name: string;
   analysis_id?: string;
   analysis_timestamp?: string;
+};
+
+type HistoryReport = {
+  id: string;
+  kind: string;
+  mode: string;
+  probability: number;
+  confidence: number;
+  risk_level: string;
+  patient_name: string | null;
+  created_at: string;
 };
 
 
@@ -184,6 +197,12 @@ function DashboardPage() {
           </button>
         </div>
       </header>
+
+      <DashboardOverview
+        stored={stored}
+        history={(historyQuery.data ?? []) as HistoryReport[]}
+        loading={historyQuery.isLoading}
+      />
 
       {!stored && !savedId && <EmptyState />}
 
@@ -383,38 +402,249 @@ function DashboardPage() {
         </div>
       )}
 
-      {/* History */}
-      <div className="mt-10 print:hidden">
-        <h2 className="font-display text-xl font-semibold mb-3">Recent reports</h2>
-        <div className="glass rounded-2xl p-4">
-          {historyQuery.isLoading && <div className="p-4 text-sm text-muted-foreground">Loading…</div>}
-          {historyQuery.data && historyQuery.data.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground">No saved reports yet.</div>
-          )}
-          <ul className="divide-y divide-border/60">
-            {historyQuery.data?.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-4 px-2 py-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {r.patient_name || "Unnamed patient"} · {r.kind === "gait" ? "Gait" : "Facial"}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {new Date(r.created_at).toLocaleString()} · {r.mode} · {r.risk_level}
-                  </div>
-                </div>
-                <div className="text-sm gradient-text font-semibold">
-                  {(Number(r.probability) * 100).toFixed(0)}%
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
     </section>
   );
 }
 
 /* ---------------- subcomponents ---------------- */
+
+function DashboardOverview({
+  stored,
+  history,
+  loading,
+}: {
+  stored: Stored | null;
+  history: HistoryReport[];
+  loading: boolean;
+}) {
+  const gaitReport = history.find((report) => report.kind === "gait");
+  const facialReport = history.find((report) => report.kind === "facial");
+  const latestGait = stored?.result.kind === "gait" ? stored : gaitReport;
+  const latestFacial = stored?.result.kind === "facial" ? stored : facialReport;
+  const realTrend = [...history]
+    .reverse()
+    .slice(-8)
+    .map((report, index) => ({
+      label: new Date(report.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      score: Math.round(Number(report.probability) * 100),
+      order: index + 1,
+    }));
+  const isDemoTrend = !loading && realTrend.length === 0;
+  const trendData = isDemoTrend
+    ? [
+        { label: "Session 1", score: 42, order: 1 },
+        { label: "Session 2", score: 38, order: 2 },
+        { label: "Session 3", score: 35, order: 3 },
+        { label: "Session 4", score: 31, order: 4 },
+      ]
+    : realTrend;
+  const latestReport = history[0];
+  const metricCount = stored?.result.parameters.length ?? 0;
+  const completedCount = history.length + (stored ? 1 : 0);
+  const quality = stored?.result.qualityScore;
+  const currentStatus = stored
+    ? `${stored.result.parameters.filter((parameter) => parameter.status !== "normal").length} features outside reference range`
+    : latestReport
+      ? `Latest saved ${latestReport.kind} analysis: ${latestReport.risk_level}`
+      : "No completed analyses are available yet.";
+
+  return (
+    <div className="mt-8 space-y-4 print:hidden">
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-cyan">Dashboard overview</div>
+          <h2 className="mt-1 font-display text-xl font-semibold">Analysis activity</h2>
+        </div>
+        <a
+          href="/#analyze"
+          className="hidden sm:inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground glow-primary hover:brightness-110"
+        >
+          Start New Analysis
+        </a>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <OverviewMetric label="Completed analyses" value={String(completedCount)} />
+        <OverviewMetric label="Latest modality" value={stored?.result.kind === "gait" ? "Gait" : stored?.result.kind === "facial" ? "Facial" : latestReport ? titleCase(latestReport.kind) : "Not available"} />
+        <OverviewMetric label="Key metrics available" value={metricCount ? String(metricCount) : "Not available"} />
+        <OverviewMetric label="Current data quality" value={quality != null ? `${quality.toFixed(0)}%` : "Not available"} />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="glass rounded-2xl p-5 lg:col-span-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-cyan">Latest Results</div>
+              <div className="mt-1 text-sm text-muted-foreground">Most recent result available for each modality</div>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <LatestResultCard
+              icon={Footprints}
+              modality="Gait"
+              available={Boolean(latestGait)}
+              detail={formatLatestDetail(latestGait)}
+            />
+            <LatestResultCard
+              icon={ScanFace}
+              modality="Facial"
+              available={Boolean(latestFacial)}
+              detail={formatLatestDetail(latestFacial)}
+            />
+            <LatestResultCard
+              icon={Mic2}
+              modality="Voice"
+              available={false}
+              detail="Voice results are not stored in dashboard history"
+            />
+          </div>
+        </div>
+
+        <div className="glass rounded-2xl p-5">
+          <div className="text-xs uppercase tracking-[0.2em] text-cyan">Analysis Summary</div>
+          <div className="mt-4 flex items-start gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/15">
+              <Activity className="h-4 w-4 text-cyan" />
+            </div>
+            <div>
+              <div className="text-sm font-medium">{stored ? "Current session complete" : latestReport ? "Saved analysis activity" : "Ready for analysis"}</div>
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{currentStatus}</p>
+            </div>
+          </div>
+          <p className="mt-4 border-t border-border/60 pt-4 text-xs leading-relaxed text-muted-foreground">
+            Findings describe measured movement characteristics for research screening and do not provide a medical diagnosis.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-5">
+        <div className="glass rounded-2xl p-5 lg:col-span-2">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-cyan">Historical Trend</div>
+              <div className="mt-1 text-xs text-muted-foreground">Analysis score across saved sessions</div>
+            </div>
+            {isDemoTrend && <DemoBadge />}
+          </div>
+          {loading ? (
+            <div className="grid h-44 place-items-center text-sm text-muted-foreground">Loading history…</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={176}>
+              <LineChart data={trendData} margin={{ top: 18, right: 12, left: -22, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                <XAxis dataKey="label" tick={{ fill: "#94A3B8", fontSize: 10 }} />
+                <YAxis domain={[0, 100]} tick={{ fill: "#94A3B8", fontSize: 10 }} />
+                <Tooltip contentStyle={tooltipStyle} formatter={(value) => [`${value}%`, "Analysis score"]} />
+                <Line type="monotone" dataKey="score" stroke="#22D3EE" strokeWidth={2} dot={{ fill: "#22D3EE", r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div className="glass rounded-2xl p-5 lg:col-span-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-cyan">Recent Analyses</div>
+              <div className="mt-1 text-xs text-muted-foreground">Latest saved research sessions</div>
+            </div>
+          </div>
+          {loading && <div className="py-8 text-center text-sm text-muted-foreground">Loading analyses…</div>}
+          {!loading && history.length === 0 && (
+            <div className="py-8 text-center text-sm text-muted-foreground">No saved analyses yet. Complete and save an analysis to build history.</div>
+          )}
+          {history.length > 0 && (
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="pb-2 text-left">Analysis ID</th>
+                    <th className="pb-2 text-left">Date</th>
+                    <th className="pb-2 text-left">Modality</th>
+                    <th className="pb-2 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.slice(0, 5).map((report) => (
+                    <tr key={report.id} className="border-t border-border/50">
+                      <td className="py-3 font-mono text-xs">{shortAnalysisId(report.id)}</td>
+                      <td className="py-3 text-xs text-muted-foreground">{new Date(report.created_at).toLocaleDateString()}</td>
+                      <td className="py-3">{titleCase(report.kind)}</td>
+                      <td className="py-3 text-right">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/5 px-2 py-0.5 text-xs text-success">
+                          <CheckCircle2 className="h-3 w-3" /> Complete
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OverviewMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="glass rounded-2xl p-4">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className="mt-2 font-display text-xl font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function LatestResultCard({
+  icon: Icon,
+  modality,
+  available,
+  detail,
+}: {
+  icon: React.ElementType;
+  modality: string;
+  available: boolean;
+  detail: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border/60 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="grid h-8 w-8 place-items-center rounded-lg bg-primary/10">
+          <Icon className="h-4 w-4 text-cyan" />
+        </div>
+        <span className={`text-[10px] uppercase tracking-wider ${available ? "text-success" : "text-muted-foreground"}`}>
+          {available ? "Available" : "Not available"}
+        </span>
+      </div>
+      <div className="mt-3 font-medium">{modality}</div>
+      <div className="mt-1 text-xs leading-relaxed text-muted-foreground">{detail}</div>
+    </div>
+  );
+}
+
+function DemoBadge() {
+  return (
+    <span className="rounded-full border border-warning/50 bg-warning/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-warning">
+      Demo Data
+    </span>
+  );
+}
+
+function formatLatestDetail(item: Stored | HistoryReport | undefined) {
+  if (!item) return "No saved result for this modality";
+  if ("result" in item) {
+    return `${item.result.parameters.length} measured features · ${item.analysis_timestamp ? new Date(item.analysis_timestamp).toLocaleDateString() : "Current session"}`;
+  }
+  return `${new Date(item.created_at).toLocaleDateString()} · ${titleCase(item.mode)} protocol`;
+}
+
+function titleCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function shortAnalysisId(id: string) {
+  return `NS-${id.slice(0, 8).toUpperCase()}`;
+}
 
 function EmptyState() {
   return (
