@@ -8,18 +8,21 @@ export type PatientInfo = {
   gender: string;
   /** standing height in cm — optional spatial-calibration reference */
   heightCm?: string;
+  recordingCondition?: string;
+  notes?: string;
 };
 
 interface Props {
   onSubmit: (p: PatientInfo) => void;
   onCancel: () => void;
+  initial?: Partial<PatientInfo>;
 }
 
-export function PatientForm({ onSubmit, onCancel }: Props) {
+export function PatientForm({ onSubmit, onCancel, initial }: Props) {
   const [name, setName] = useState("");
-  const [patientId, setPatientId] = useState("");
-  const [age, setAge] = useState("");
-  const [gender, setGender] = useState("");
+  const [patientId, setPatientId] = useState(initial?.patientId ?? "");
+  const [age, setAge] = useState(initial?.age ?? "");
+  const [gender, setGender] = useState(initial?.gender ?? "");
   const [heightCm, setHeightCm] = useState("");
 
   function submit(e: React.FormEvent) {
@@ -31,6 +34,8 @@ export function PatientForm({ onSubmit, onCancel }: Props) {
       age: age.trim(),
       gender: gender.trim(),
       heightCm: heightCm.trim(),
+      recordingCondition: initial?.recordingCondition,
+      notes: initial?.notes,
     });
   }
 
