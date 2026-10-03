@@ -206,7 +206,7 @@ function LandingPage() {
                 { n: "4", label: "Generate Report" },
               ].map((s, i) => (
                 <span key={s.n} className="inline-flex items-center gap-2">
-                  {i > 0 && <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50" />}
+                  {i > 0 && <ArrowRight className="hidden h-3.5 w-3.5 text-muted-foreground/50 sm:inline" />}
                   <span className="inline-flex items-center gap-2 rounded-full glass px-3 py-1.5">
                     <span className="grid h-5 w-5 place-items-center rounded-full bg-primary/20 font-display text-[10px] font-bold text-cyan">{s.n}</span>
                     <span className="text-foreground/80">{s.label}</span>
@@ -225,10 +225,10 @@ function LandingPage() {
                 { k: "27+", v: "quantitative parameters" },
                 { k: "33", v: "tracked pose landmarks" },
                 { k: "5", v: "acquisition protocols" },
-                { k: "CSV · JSON · PDF", v: "research export" },
+                { k: "CSV · JSON · PDF", v: "research export", small: true },
               ].map((s) => (
                 <div key={s.v} className="glass rounded-xl px-4 py-3 text-left">
-                  <div className="font-display text-2xl font-semibold gradient-text">{s.k}</div>
+                  <div className={`font-display font-semibold gradient-text whitespace-nowrap ${s.small ? "text-lg leading-8" : "text-2xl"}`}>{s.k}</div>
                   <div className="text-xs text-muted-foreground mt-1">{s.v}</div>
                 </div>
               ))}
