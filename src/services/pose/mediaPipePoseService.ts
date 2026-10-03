@@ -90,7 +90,7 @@ export async function loadVideoElement(file: File): Promise<{
       { once: true },
     );
   });
-  const durationSec = isFinite(video.duration) && video.duration > 0 ? video.duration : 0;
+  const durationSec = await resolveVideoDuration(video);
   return {
     video,
     info: { width: video.videoWidth, height: video.videoHeight, durationSec },

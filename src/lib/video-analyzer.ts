@@ -65,7 +65,8 @@ export async function analyzeVideoFile(
       video.addEventListener("error", err, { once: true });
     });
 
-    const duration = isFinite(video.duration) && video.duration > 0 ? video.duration : 4;
+    const resolved = await resolveVideoDuration(video);
+    const duration = resolved > 0 ? resolved : 4;
     const width = video.videoWidth || 640;
     const height = video.videoHeight || 360;
 
