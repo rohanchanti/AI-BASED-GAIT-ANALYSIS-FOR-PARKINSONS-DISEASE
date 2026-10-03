@@ -5,6 +5,7 @@ import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
 import { ProcessingScreen } from "@/components/ProcessingScreen";
+import { GaitVideoInput, type SubjectInfo } from "@/components/GaitVideoInput";
 import { PatientForm, type PatientInfo } from "@/components/PatientForm";
 import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
 import { ANALYSIS_VERSIONS, nextAnalysisId } from "@/lib/analysis-version";
@@ -106,7 +107,14 @@ function LandingPage() {
   const [stage, setStage] = useState<Stage>("idle");
   const navigate = useNavigate();
 
-  function onDetected(d: DetectedFile) {
+  const [prefill, setPrefill] = useState<Partial<PatientInfo> | undefined>();
+
+  function onDetected(d: DetectedFile, subject?: SubjectInfo) {
+    setPrefill(
+      subject
+        ? { patientId: subject.subjectId, age: subject.age, gender: subject.sex, recordingCondition: subject.condition, notes: subject.notes }
+        : undefined,
+    );
     setDetected(d);
     setStage("patient");
   }
@@ -241,7 +249,8 @@ function LandingPage() {
       {/* UPLOAD */}
       <section id="analyze" className="mx-auto max-w-5xl px-4 sm:px-6 -mt-4 pb-24 scroll-mt-24">
         <RecordingGuidelines />
-        <UploadZone onDetected={onDetected} />
+        <GaitVideoInput onAnalyze={onDetected} />
+        <UploadZone onDetected={(d) => onDetected(d)} />
       </section>
 
       {/* HOW IT WORKS */}
@@ -342,6 +351,7 @@ function LandingPage() {
 
       {stage === "patient" && (
         <PatientForm
+          initial={prefill}
           onSubmit={onPatientSubmit}
           onCancel={() => {
             setDetected(null);
