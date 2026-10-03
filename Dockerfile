@@ -5,7 +5,7 @@ COPY package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile
 COPY . .
 # Build a Node.js server instead of the default edge/Worker bundle
-ENV NITRO_PRESET=node-server
+ENV DOCKER_BUILD=1
 RUN bun run build
 
 FROM node:22-slim AS runtime

@@ -12,4 +12,6 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  // Docker builds (DOCKER_BUILD=1) target a standalone Node server; default builds are unchanged.
+  ...(process.env.DOCKER_BUILD ? { nitro: { preset: "node-server" } } : {}),
 });
