@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { BookOpen, FlaskConical, Cpu, Waves } from "lucide-react";
+import { ArrowDown, BookOpen, FlaskConical, Cpu, Waves } from "lucide-react";
 import { loadDataset, trainModel } from "@/lib/voice-model";
 
 export const Route = createFileRoute("/research")({
@@ -158,6 +158,56 @@ function ValidationDatasetSection() {
   );
 }
 
+const PIPELINE_STAGES: { name: string; desc: string; note?: string }[] = [
+  { name: "Data Input", desc: "Gait, facial, and voice recordings are provided as analysis inputs." },
+  { name: "Preprocessing", desc: "Input signals and recordings are prepared for feature extraction." },
+  {
+    name: "Feature Extraction",
+    desc: "Relevant temporal, spatial, movement, and voice features are extracted (facial features in preparation).",
+  },
+  { name: "AI/ML Analysis", desc: "Machine-learning models analyze extracted features." },
+  {
+    name: "Multimodal Analysis",
+    desc: "Available modalities can be combined to provide a broader movement profile.",
+    note: "Planned",
+  },
+  { name: "Results", desc: "Measured parameters and model outputs are presented through visualizations." },
+  { name: "Report", desc: "Results can be organized into a structured analysis report." },
+];
+
+function TechnicalPipelineSection() {
+  return (
+    <section className="mt-10">
+      <div className="text-xs uppercase tracking-[0.2em] text-cyan">Technical Pipeline</div>
+      <h2 className="mt-2 font-display text-2xl font-semibold">Processing flow</h2>
+      <div className="mt-4 glass rounded-2xl p-6">
+        <ol>
+          {PIPELINE_STAGES.map((s, i) => (
+            <li key={s.name}>
+              {i > 0 && (
+                <div className="flex justify-center py-1.5 text-cyan/70" aria-hidden>
+                  <ArrowDown className="h-4 w-4" />
+                </div>
+              )}
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-display text-sm font-semibold text-foreground/90">{s.name}</span>
+                  {s.note && (
+                    <span className="rounded-full border border-warning/40 px-2 py-0.5 text-[10px] uppercase tracking-wider text-warning">
+                      {s.note}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">{s.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
 function ResearchPage() {
   return (
     <section className="mx-auto max-w-5xl px-4 sm:px-6 py-14">
@@ -185,6 +235,8 @@ function ResearchPage() {
           </div>
         ))}
       </div>
+
+      <TechnicalPipelineSection />
 
       <ValidationDatasetSection />
 
