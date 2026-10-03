@@ -11,7 +11,7 @@ import {
 import {
   Activity, Sparkles, User, LogOut,
   FileDown, FileJson, FileSpreadsheet, ImageDown, Printer,
-  CheckCircle2, Footprints, ScanFace, Mic2, CalendarDays,
+  CheckCircle2, Footprints, ScanFace, Mic2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { saveReport, listReports } from "@/lib/reports.functions";
