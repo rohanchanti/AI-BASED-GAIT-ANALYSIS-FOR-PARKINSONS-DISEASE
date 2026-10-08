@@ -5,7 +5,7 @@ import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
 import { ProcessingScreen } from "@/components/ProcessingScreen";
-import { GaitVideoInput, type SubjectInfo } from "@/components/GaitVideoInput";
+import { GaitVideoInput, subjectSchema, type SubjectInfo } from "@/components/GaitVideoInput";
 import { PatientForm, type PatientInfo } from "@/components/PatientForm";
 import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
 import { ANALYSIS_VERSIONS, nextAnalysisId } from "@/lib/analysis-version";
@@ -110,11 +110,28 @@ function LandingPage() {
   const [prefill, setPrefill] = useState<Partial<PatientInfo> | undefined>();
 
   function onDetected(d: DetectedFile, subject?: SubjectInfo) {
-    setPrefill(
-      subject
-        ? { patientId: subject.subjectId, age: subject.age, gender: subject.sex, recordingCondition: subject.condition, notes: subject.notes }
-        : undefined,
-    );
+    if (subject) {
+      // Re-validate before any analysis starts; subject details are required.
+      const parsed = subjectSchema.safeParse(subject);
+      if (!parsed.success) {
+        toast.error("Subject information is incomplete", { description: "Please fill in all required fields." });
+        return;
+      }
+      const s = parsed.data;
+      setPrefill(undefined);
+      setDetected(d);
+      setPatient({
+        name: s.subjectName,
+        patientId: s.subjectId,
+        age: s.age,
+        gender: s.sex,
+        recordingCondition: s.condition,
+        notes: s.notes,
+      });
+      setStage("mode");
+      return;
+    }
+    setPrefill(undefined);
     setDetected(d);
     setStage("patient");
   }
@@ -139,6 +156,8 @@ function LandingPage() {
         patient_id: patient?.patientId ?? "",
         patient_age: patient?.age ?? "",
         patient_gender: patient?.gender ?? "",
+        recording_condition: patient?.recordingCondition ?? "",
+        notes: patient?.notes ?? "",
         media_kind: detected.kind,
         media_name: detected.file.name,
         analysis_id: nextAnalysisId(),
