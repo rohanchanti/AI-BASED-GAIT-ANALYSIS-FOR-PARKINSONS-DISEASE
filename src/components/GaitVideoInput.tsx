@@ -38,9 +38,9 @@ const isVideo = (f: File) =>
   /^video\/(mp4|webm|quicktime|x-msvideo|avi)$/.test(f.type) || /\.(mp4|webm|mov|avi)$/i.test(f.name);
 
 const MAX_SECONDS = 60;
-const UNSUPPORTED_MSG = "Live camera recording is not supported by this browser. Please use Upload Video instead.";
-const DENIED_MSG =
-  "Camera access is required to record a live gait video. Please allow camera access in your browser settings.";
+const UNSUPPORTED_MSG = "Live camera recording is not supported by this browser. Please upload a video instead.";
+const DENIED_MSG = "Camera access was denied. Please allow camera permission in your browser settings.";
+const NO_RECORDER_MSG = "Video recording is not supported by this browser. Please upload a video instead.";
 
 const GUIDELINES = [
   "Place the camera at approximately waist/hip height.",
@@ -98,14 +98,25 @@ export function GaitVideoInput({ onAnalyze }: Props) {
   function stopCamera() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
+    if (liveRef.current) liveRef.current.srcObject = null;
     setStream(null);
   }
 
-  async function startCamera(face: "user" | "environment" = facing) {
+  async function startCamera(face?: "user" | "environment") {
+    if (!face) {
+      // Prefer the rear camera on phones/tablets (better for filming another person walking).
+      face = window.matchMedia?.("(pointer: coarse)").matches ? "environment" : "user";
+      setFacing(face);
+    }
     setError(null);
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    if (!navigator.mediaDevices?.getUserMedia) {
       setUnsupported(true);
       setError(UNSUPPORTED_MSG);
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      setUnsupported(true);
+      setError(NO_RECORDER_MSG);
       return;
     }
     stopCamera();
@@ -125,7 +136,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
       }
     } catch (e) {
       const name = (e as DOMException)?.name;
-      setError(name === "NotFoundError" ? "No camera was found on this device." : DENIED_MSG);
+      setError(name === "NotFoundError" ? "No camera was detected on this device." : DENIED_MSG);
     } finally {
       setRequesting(false);
     }
@@ -144,8 +155,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
     setError(null);
     stopCamera();
     setMode(m);
-    // Camera turns on only after an explicit click on "Record Live Video".
-    if (m === "live") void startCamera();
+    // Camera turns on only after an explicit click on "Open Camera".
   }
 
   useEffect(() => {
@@ -174,7 +184,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
 
   function startRecording() {
     if (!stream || typeof MediaRecorder === "undefined") {
-      setError(UNSUPPORTED_MSG);
+      setError(NO_RECORDER_MSG);
       return;
     }
     const type = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"].find((t) =>
@@ -217,7 +227,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
   function retake() {
     clearVideo();
     setElapsed(0);
-    void startCamera();
+    void startCamera(facing);
   }
 
   function confirmVideo() {
@@ -304,10 +314,10 @@ export function GaitVideoInput({ onAnalyze }: Props) {
 
       <div className="mt-5 flex flex-col sm:flex-row gap-3" role="tablist">
         <button type="button" role="tab" aria-selected={mode === "live"} className={tab(mode === "live")} onClick={() => selectMode("live")}>
-          <Video className="h-4 w-4" /> Record Live Video
+          <Video className="h-4 w-4" /> 📷 Record Live Video
         </button>
         <button type="button" role="tab" aria-selected={mode === "upload"} className={tab(mode === "upload")} onClick={() => selectMode("upload")}>
-          <FolderOpen className="h-4 w-4" /> Upload Video
+          <FolderOpen className="h-4 w-4" /> 📁 Upload Existing Video
         </button>
       </div>
 
@@ -315,6 +325,15 @@ export function GaitVideoInput({ onAnalyze }: Props) {
         <div className="min-w-0 space-y-4">
           {mode === "live" ? (
             <>
+              <div className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                {video ? "Recorded Video" : "Live Camera Recording"}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Status:{" "}
+                <span className="text-foreground">
+                  {recording ? "Recording" : video ? "Recording finished — review below" : requesting ? "Requesting permission…" : stream ? "Camera ready" : "Camera off"}
+                </span>
+              </div>
               {!video && (
                 <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-background/60 aspect-video">
                   {stream ? (
@@ -327,9 +346,9 @@ export function GaitVideoInput({ onAnalyze }: Props) {
                         <div>{UNSUPPORTED_MSG}</div>
                       ) : (
                         <div>
-                          The camera stays off until you turn it on.
+                          Camera is off. It only starts when you click Open Camera.
                           <button type="button" onClick={() => void startCamera()} className="mt-3 flex mx-auto items-center gap-2 rounded-lg bg-primary px-4 py-2 text-primary-foreground glow-primary">
-                            <Video className="h-4 w-4" /> Turn on camera
+                            <Video className="h-4 w-4" /> Open Camera
                           </button>
                         </div>
                       )}
@@ -338,12 +357,12 @@ export function GaitVideoInput({ onAnalyze }: Props) {
                   {stream && (
                     <div className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1 text-xs font-mono">
                       <span className={`h-2 w-2 rounded-full ${recording ? "bg-destructive animate-pulse" : "bg-muted-foreground"}`} />
-                      {recording ? "● RECORDING" : "LIVE"} {fmt(elapsed)} / {fmt(MAX_SECONDS)}
+                      {recording ? "🔴 Recording" : "Camera ready"} {fmt(elapsed)} / {fmt(MAX_SECONDS)}
                     </div>
                   )}
                   {stream && !recording && hasMultipleCams && (
                     <button type="button" onClick={switchCamera} className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg bg-background/80 px-2.5 py-1 text-xs hover:text-primary">
-                      <RotateCcw className="h-3 w-3" /> Switch camera
+                      <RotateCcw className="h-3 w-3" /> Switch Camera
                     </button>
                   )}
                 </div>
