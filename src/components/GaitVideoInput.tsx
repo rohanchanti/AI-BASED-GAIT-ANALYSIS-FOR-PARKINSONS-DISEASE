@@ -392,13 +392,13 @@ export function GaitVideoInput({ onAnalyze }: Props) {
 
           {video && (
             <div className="space-y-3">
-              <video src={video.url} controls playsInline className="w-full rounded-2xl border border-border/60 bg-background/60 aspect-video" />
+              <video src={video.url} controls playsInline onLoadedMetadata={(e) => onPreviewMeta(e.currentTarget)} onError={() => { setVideoValid(false); setError("This video could not be read by your browser. It may be empty, corrupted or in an unsupported format — please record again or choose an MP4/WebM file."); }} className="w-full rounded-2xl border border-border/60 bg-background/60 aspect-video object-contain" />
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 p-3 text-sm">
                 <div className="min-w-0">
                   <div className="truncate font-medium">{video.file.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {(video.file.size / 1024 / 1024).toFixed(2)} MB · {video.file.type || "video"}
-                    {mode === "live" && ` · ${fmt(elapsed)}`}
+                    {` · ${fmt(video.duration ? Math.round(video.duration) : elapsed)}`}
                   </div>
                 </div>
                 {mode === "upload" && (
@@ -431,7 +431,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
                   <option value="" disabled>Select…</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option>
                 </select>
               ))}
-              {field("condition", "Recording Condition", "sm:col-span-3", <input type="text" className={inputCls} value={subject.condition} onChange={(e) => setSubject({ ...subject, condition: e.target.value })} placeholder="e.g. indoor corridor, self-selected pace" maxLength={200} />)}
+              {field("condition", "Recording Condition", "sm:col-span-3", <input type="text" className={inputCls} value={subject.condition} onChange={(e) => setSubject({ ...subject, condition: e.target.value })} placeholder="e.g. indoor corridor, self-selected walking pace" maxLength={200} />)}
               {field("notes", "Notes", "sm:col-span-3", <textarea rows={2} className={inputCls} value={subject.notes} onChange={(e) => setSubject({ ...subject, notes: e.target.value })} placeholder="Enter relevant observations or recording notes" maxLength={1000} />)}
             </div>
           </fieldset>
@@ -441,7 +441,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
             Only upload or record subjects with appropriate consent. Video data should be handled according to your institutional and research requirements.
           </div>
 
-          <button type="button" disabled={!video || recording} onClick={analyze} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground glow-primary hover:brightness-110 disabled:opacity-50">
+          <button type="button" disabled={!video || recording || !videoValid || (mode === "live" && !confirmed)} onClick={analyze} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground glow-primary hover:brightness-110 disabled:opacity-50">
             <Play className="h-4 w-4" /> {mode === "live" ? "Analyze Recording" : "Analyze Video"}
           </button>
         </div>
