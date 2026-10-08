@@ -1,14 +1,33 @@
 import { useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound } from "lucide-react";
 import type { DetectedFile } from "@/components/UploadZone";
 
 export type SubjectInfo = {
+  subjectName: string;
   subjectId: string;
   age: string;
   sex: string;
   condition: string;
   notes: string;
 };
+
+const req = "This field is required.";
+export const subjectSchema = z.object({
+  subjectName: z.string().trim().min(1, req).max(100, "Must be under 100 characters."),
+  subjectId: z.string().trim().min(1, req).max(50, "Must be under 50 characters."),
+  age: z
+    .string()
+    .trim()
+    .min(1, req)
+    .regex(/^\d{1,3}$/, "Enter a whole number between 1 and 120.")
+    .refine((v) => Number(v) >= 1 && Number(v) <= 120, "Enter a whole number between 1 and 120."),
+  sex: z.enum(["Male", "Female", "Other", "Prefer not to say"], { message: req }),
+  condition: z.string().trim().min(1, req).max(200, "Must be under 200 characters."),
+  notes: z.string().trim().min(1, req).max(1000, "Must be under 1000 characters."),
+});
+
+const FIELD_ORDER: (keyof SubjectInfo)[] = ["subjectName", "subjectId", "age", "sex", "condition", "notes"];
 
 interface Props {
   onAnalyze: (d: DetectedFile, subject: SubjectInfo) => void;
@@ -34,7 +53,17 @@ export function GaitVideoInput({ onAnalyze }: Props) {
   const [mode, setMode] = useState<"live" | "upload">("upload");
   const [video, setVideo] = useState<{ file: File; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [subject, setSubject] = useState<SubjectInfo>({ subjectId: "", age: "", sex: "", condition: "", notes: "" });
+  const [subject, setSubjectState] = useState<SubjectInfo>({ subjectName: "", subjectId: "", age: "", sex: "", condition: "", notes: "" });
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof SubjectInfo, string>>>({});
+  const fieldRefs = useRef<Partial<Record<keyof SubjectInfo, HTMLElement | null>>>({});
+  const setSubject = (next: SubjectInfo) => {
+    setFieldErrors((errs) => {
+      const copy = { ...errs };
+      for (const k of FIELD_ORDER) if (next[k] !== subject[k]) delete copy[k];
+      return copy;
+    });
+    setSubjectState(next);
+  };
 
   // live state
   const [stream, setStream] = useState<MediaStream | null>(null);
