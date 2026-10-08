@@ -1,14 +1,33 @@
-import { useEffect, useRef, useState } from "react";
+import { cloneElement as cloneEl, useEffect, useRef, useState } from "react";
+import { z } from "zod";
 import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound } from "lucide-react";
 import type { DetectedFile } from "@/components/UploadZone";
 
 export type SubjectInfo = {
+  subjectName: string;
   subjectId: string;
   age: string;
   sex: string;
   condition: string;
   notes: string;
 };
+
+const req = "This field is required.";
+export const subjectSchema = z.object({
+  subjectName: z.string().trim().min(1, req).max(100, "Must be under 100 characters."),
+  subjectId: z.string().trim().min(1, req).max(50, "Must be under 50 characters."),
+  age: z
+    .string()
+    .trim()
+    .min(1, req)
+    .regex(/^\d{1,3}$/, "Enter a whole number between 1 and 120.")
+    .refine((v) => Number(v) >= 1 && Number(v) <= 120, "Enter a whole number between 1 and 120."),
+  sex: z.enum(["Male", "Female", "Other", "Prefer not to say"], { message: req }),
+  condition: z.string().trim().min(1, req).max(200, "Must be under 200 characters."),
+  notes: z.string().trim().min(1, req).max(1000, "Must be under 1000 characters."),
+});
+
+const FIELD_ORDER: (keyof SubjectInfo)[] = ["subjectName", "subjectId", "age", "sex", "condition", "notes"];
 
 interface Props {
   onAnalyze: (d: DetectedFile, subject: SubjectInfo) => void;
@@ -34,7 +53,17 @@ export function GaitVideoInput({ onAnalyze }: Props) {
   const [mode, setMode] = useState<"live" | "upload">("upload");
   const [video, setVideo] = useState<{ file: File; url: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [subject, setSubject] = useState<SubjectInfo>({ subjectId: "", age: "", sex: "", condition: "", notes: "" });
+  const [subject, setSubjectState] = useState<SubjectInfo>({ subjectName: "", subjectId: "", age: "", sex: "", condition: "", notes: "" });
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof SubjectInfo, string>>>({});
+  const fieldRefs = useRef<Partial<Record<keyof SubjectInfo, HTMLElement | null>>>({});
+  const setSubject = (next: SubjectInfo) => {
+    setFieldErrors((errs) => {
+      const copy = { ...errs };
+      for (const k of FIELD_ORDER) if (next[k] !== subject[k]) delete copy[k];
+      return copy;
+    });
+    setSubjectState(next);
+  };
 
   // live state
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -138,8 +167,44 @@ export function GaitVideoInput({ onAnalyze }: Props) {
 
   function analyze() {
     if (!video) return;
+    const parsed = subjectSchema.safeParse(subject);
+    if (!parsed.success) {
+      const errs: Partial<Record<keyof SubjectInfo, string>> = {};
+      for (const issue of parsed.error.issues) {
+        const k = issue.path[0] as keyof SubjectInfo;
+        if (!errs[k]) errs[k] = issue.message;
+      }
+      setFieldErrors(errs);
+      const first = FIELD_ORDER.find((k) => errs[k]);
+      if (first) fieldRefs.current[first]?.focus();
+      return;
+    }
     stopCamera();
-    onAnalyze({ file: video.file, kind: "gait", previewUrl: video.url }, subject);
+    onAnalyze({ file: video.file, kind: "gait", previewUrl: video.url }, parsed.data as SubjectInfo);
+  }
+
+  function field(key: keyof SubjectInfo, label: string, span: string, control: React.ReactElement<any>) {
+    const err = fieldErrors[key];
+    const id = `subject-${key}`;
+    return (
+      <div className={`block ${span}`}>
+        <label htmlFor={id} className="text-xs text-muted-foreground">
+          {label} <span className="text-destructive">*</span>
+        </label>
+        {cloneEl(control, {
+          id,
+          required: true,
+          "aria-required": true,
+          "aria-invalid": !!err,
+          "aria-describedby": err ? `${id}-err` : undefined,
+          ref: (el: HTMLElement | null) => {
+            fieldRefs.current[key] = el;
+          },
+          className: `${inputCls} ${err ? "border-destructive" : ""}`,
+        })}
+        {err && <p id={`${id}-err`} className="mt-1 text-xs text-destructive">{err}</p>}
+      </div>
+    );
   }
 
   const tab = (active: boolean) =>
@@ -254,21 +319,19 @@ export function GaitVideoInput({ onAnalyze }: Props) {
 
           <fieldset className="rounded-2xl border border-border/60 p-4">
             <legend className="flex items-center gap-2 px-1 text-sm font-medium">
-              <UserRound className="h-4 w-4 text-cyan" /> Subject Information <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+              <UserRound className="h-4 w-4 text-cyan" /> Subject Information <span className="text-destructive">*</span>
             </legend>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <label className="block"><span className="text-xs text-muted-foreground">Subject ID</span>
-                <input className={inputCls} value={subject.subjectId} onChange={(e) => setSubject({ ...subject, subjectId: e.target.value })} placeholder="e.g. S-014" /></label>
-              <label className="block"><span className="text-xs text-muted-foreground">Age</span>
-                <input type="number" min={0} max={120} className={inputCls} value={subject.age} onChange={(e) => setSubject({ ...subject, age: e.target.value })} /></label>
-              <label className="block"><span className="text-xs text-muted-foreground">Sex</span>
+              {field("subjectName", "Subject Name", "", <input type="text" className={inputCls} value={subject.subjectName} onChange={(e) => setSubject({ ...subject, subjectName: e.target.value })} placeholder="e.g. John Doe" maxLength={100} />)}
+              {field("subjectId", "Subject ID", "", <input type="text" className={inputCls} value={subject.subjectId} onChange={(e) => setSubject({ ...subject, subjectId: e.target.value })} placeholder="e.g. S-014" maxLength={50} />)}
+              {field("age", "Age", "", <input type="text" inputMode="numeric" className={inputCls} value={subject.age} onChange={(e) => setSubject({ ...subject, age: e.target.value.replace(/\D/g, "").slice(0, 3) })} placeholder="1–120" />)}
+              {field("sex", "Sex", "sm:col-span-3", (
                 <select className={inputCls} value={subject.sex} onChange={(e) => setSubject({ ...subject, sex: e.target.value })}>
-                  <option value="">Not specified</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
-                </select></label>
-              <label className="block sm:col-span-3"><span className="text-xs text-muted-foreground">Recording condition</span>
-                <input className={inputCls} value={subject.condition} onChange={(e) => setSubject({ ...subject, condition: e.target.value })} placeholder="e.g. indoor corridor, self-selected pace" /></label>
-              <label className="block sm:col-span-3"><span className="text-xs text-muted-foreground">Notes</span>
-                <textarea rows={2} className={inputCls} value={subject.notes} onChange={(e) => setSubject({ ...subject, notes: e.target.value })} /></label>
+                  <option value="" disabled>Select…</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              ))}
+              {field("condition", "Recording Condition", "sm:col-span-3", <input type="text" className={inputCls} value={subject.condition} onChange={(e) => setSubject({ ...subject, condition: e.target.value })} placeholder="e.g. indoor corridor, self-selected pace" maxLength={200} />)}
+              {field("notes", "Notes", "sm:col-span-3", <textarea rows={2} className={inputCls} value={subject.notes} onChange={(e) => setSubject({ ...subject, notes: e.target.value })} placeholder="Enter relevant observations or recording notes" maxLength={1000} />)}
             </div>
           </fieldset>
 
