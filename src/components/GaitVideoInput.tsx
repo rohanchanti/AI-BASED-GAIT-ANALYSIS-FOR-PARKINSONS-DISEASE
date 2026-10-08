@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { cloneElement as cloneEl, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound } from "lucide-react";
 import type { DetectedFile } from "@/components/UploadZone";
