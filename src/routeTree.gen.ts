@@ -22,6 +22,7 @@ import { Route as AuthenticatedVoiceAnalysisRouteImport } from './routes/_authen
 import { Route as AuthenticatedWorkspaceRouteImport } from './routes/_authenticated/workspace'
 import { Route as AuthenticatedClinicalIndexRouteImport } from './routes/_authenticated/clinical/index'
 import { Route as AuthenticatedClinicalPatientsIdRouteImport } from './routes/_authenticated/clinical/patients.$id'
+import { Route as AuthenticatedClinicalVisitsIdRouteImport } from './routes/_authenticated/clinical/visits.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -90,6 +91,12 @@ const AuthenticatedClinicalPatientsIdRoute =
     path: '/clinical/patients/$id',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedClinicalVisitsIdRoute =
+  AuthenticatedClinicalVisitsIdRouteImport.update({
+    id: '/clinical/visits/$id',
+    path: '/clinical/visits/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -104,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/workspace': typeof AuthenticatedWorkspaceRoute
   '/clinical/': typeof AuthenticatedClinicalIndexRoute
   '/clinical/patients/$id': typeof AuthenticatedClinicalPatientsIdRoute
+  '/clinical/visits/$id': typeof AuthenticatedClinicalVisitsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +126,7 @@ export interface FileRoutesByTo {
   '/workspace': typeof AuthenticatedWorkspaceRoute
   '/clinical': typeof AuthenticatedClinicalIndexRoute
   '/clinical/patients/$id': typeof AuthenticatedClinicalPatientsIdRoute
+  '/clinical/visits/$id': typeof AuthenticatedClinicalVisitsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +143,7 @@ export interface FileRoutesById {
   '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
   '/_authenticated/clinical/': typeof AuthenticatedClinicalIndexRoute
   '/_authenticated/clinical/patients/$id': typeof AuthenticatedClinicalPatientsIdRoute
+  '/_authenticated/clinical/visits/$id': typeof AuthenticatedClinicalVisitsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/clinical/'
     | '/clinical/patients/$id'
+    | '/clinical/visits/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/workspace'
     | '/clinical'
     | '/clinical/patients/$id'
+    | '/clinical/visits/$id'
   id:
     | '__root__'
     | '/'
@@ -179,6 +191,7 @@ export interface FileRouteTypes {
     | '/_authenticated/workspace'
     | '/_authenticated/clinical/'
     | '/_authenticated/clinical/patients/$id'
+    | '/_authenticated/clinical/visits/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -283,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicalPatientsIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/clinical/visits/$id': {
+      id: '/_authenticated/clinical/visits/$id'
+      path: '/clinical/visits/$id'
+      fullPath: '/clinical/visits/$id'
+      preLoaderRoute: typeof AuthenticatedClinicalVisitsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -294,6 +314,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedWorkspaceRoute: typeof AuthenticatedWorkspaceRoute
   AuthenticatedClinicalIndexRoute: typeof AuthenticatedClinicalIndexRoute
   AuthenticatedClinicalPatientsIdRoute: typeof AuthenticatedClinicalPatientsIdRoute
+  AuthenticatedClinicalVisitsIdRoute: typeof AuthenticatedClinicalVisitsIdRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -304,6 +325,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedWorkspaceRoute: AuthenticatedWorkspaceRoute,
   AuthenticatedClinicalIndexRoute: AuthenticatedClinicalIndexRoute,
   AuthenticatedClinicalPatientsIdRoute: AuthenticatedClinicalPatientsIdRoute,
+  AuthenticatedClinicalVisitsIdRoute: AuthenticatedClinicalVisitsIdRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
