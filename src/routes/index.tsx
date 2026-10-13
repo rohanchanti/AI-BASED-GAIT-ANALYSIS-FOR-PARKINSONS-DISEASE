@@ -4,8 +4,10 @@ import { ArrowRight, Activity, Brain, Cpu, LineChart, Shield, Sparkles, FlaskCon
 import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
-import { ProcessingScreen } from "@/components/ProcessingScreen";
-import { GaitVideoInput, subjectSchema, type SubjectInfo } from "@/components/GaitVideoInput";
+import { GaitVideoInput, subjectSchema, type SubjectInfo, type RecordingMeta } from "@/components/GaitVideoInput";
+import { ProcessingScreen, type JobRequest } from "@/components/ProcessingScreen";
+import { protocolById } from "@/lib/video-config";
+import type { QualityIssue } from "@/lib/video-config";
 import { PatientForm, type PatientInfo } from "@/components/PatientForm";
 import { ResearchDisclaimer } from "@/components/research/ResearchDisclaimer";
 import { ANALYSIS_VERSIONS, nextAnalysisId } from "@/lib/analysis-version";
@@ -107,9 +109,10 @@ function LandingPage() {
   const [stage, setStage] = useState<Stage>("idle");
   const navigate = useNavigate();
 
+  const [job, setJob] = useState<JobRequest | undefined>();
   const [prefill, setPrefill] = useState<Partial<PatientInfo> | undefined>();
 
-  function onDetected(d: DetectedFile, subject?: SubjectInfo) {
+  function onDetected(d: DetectedFile, subject?: SubjectInfo, meta?: RecordingMeta) {
     if (subject) {
       // Re-validate before any analysis starts; subject details are required.
       const parsed = subjectSchema.safeParse(subject);
@@ -128,10 +131,31 @@ function LandingPage() {
         recordingCondition: s.condition,
         notes: s.notes,
       });
+      if (meta) {
+        const proto = protocolById(meta.protocol);
+        setJob({
+          protocol: proto.id,
+          create: {
+            sessionKey: crypto.randomUUID(),
+            subject: { name: s.subjectName, subjectId: s.subjectId, age: s.age, sex: s.sex, recordingCondition: s.condition, notes: s.notes },
+            protocol: proto.id,
+            trialNumber: meta.trialNumber,
+            walkingDistanceM: meta.walkingDistanceM,
+            deviations: meta.deviations,
+            source: meta.source,
+            file: { name: d.file.name, type: d.file.type, size: d.file.size },
+            versions: ANALYSIS_VERSIONS as unknown as Record<string, string | null>,
+          },
+        });
+        setMode(proto.mode);
+        setStage("processing");
+        return;
+      }
       setStage("mode");
       return;
     }
     setPrefill(undefined);
+    setJob(undefined);
     setDetected(d);
     setStage("patient");
   }
@@ -146,7 +170,7 @@ function LandingPage() {
     setStage("processing");
   }
 
-  function onComplete(result: AnalysisResult) {
+  function onComplete(result: AnalysisResult, meta?: { runId: string | null; warnings: QualityIssue[] }) {
     if (!detected) return;
     sessionStorage.setItem(
       "latestResult",
@@ -163,6 +187,8 @@ function LandingPage() {
         analysis_id: nextAnalysisId(),
         analysis_timestamp: new Date().toISOString(),
         versions: ANALYSIS_VERSIONS,
+        run_id: meta?.runId ?? null,
+        quality_warnings: meta?.warnings ?? [],
       }),
     );
 
@@ -172,7 +198,8 @@ function LandingPage() {
   }
 
   function onAnalysisError(message: string) {
-    toast.error("Analysis failed", { description: message });
+    toast.error(message === "Analysis cancelled." ? "Analysis cancelled" : "Analysis stopped", { description: message });
+    setJob(undefined);
     setStage("idle");
     setDetected(null);
     setPatient(null);
@@ -268,7 +295,7 @@ function LandingPage() {
       {/* UPLOAD */}
       <section id="analyze" className="mx-auto max-w-5xl px-4 sm:px-6 -mt-4 pb-24 scroll-mt-24">
         <RecordingGuidelines />
-        <GaitVideoInput onAnalyze={onDetected} />
+        <GaitVideoInput onAnalyze={onDetected} busy={stage === "processing"} />
         <UploadZone onDetected={(d) => onDetected(d)} />
       </section>
 
@@ -399,6 +426,7 @@ function LandingPage() {
           kind={detected.kind}
           mode={mode}
           file={detected.file}
+          job={job}
           onComplete={onComplete}
           onError={onAnalysisError}
         />

@@ -153,6 +153,7 @@ function DashboardPage() {
           recording_condition: (stored as { recording_condition?: string }).recording_condition || undefined,
           notes: (stored as { notes?: string }).notes || undefined,
           analysis_code: stored.analysis_id,
+          analysis_run_id: (stored as { run_id?: string | null }).run_id || undefined,
           analysis_timestamp: stored.analysis_timestamp,
           versions: ANALYSIS_VERSIONS as unknown as Record<string, string | null>,
           pose: pose

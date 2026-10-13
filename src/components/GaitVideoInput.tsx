@@ -1,6 +1,7 @@
 import { cloneElement as cloneEl, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound } from "lucide-react";
+import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound, Pause, ClipboardList } from "lucide-react";
+import { ACCEPT_ATTR, checkVideoFile, PROTOCOLS, protocolById, VIDEO_LIMITS, type ProtocolId } from "@/lib/video-config";
 import type { DetectedFile } from "@/components/UploadZone";
 
 export type SubjectInfo = {
@@ -29,15 +30,23 @@ export const subjectSchema = z.object({
 
 const FIELD_ORDER: (keyof SubjectInfo)[] = ["subjectName", "subjectId", "age", "sex", "condition", "notes"];
 
-interface Props {
-  onAnalyze: (d: DetectedFile, subject: SubjectInfo) => void;
+export interface RecordingMeta {
+  protocol: ProtocolId;
+  trialNumber: number;
+  walkingDistanceM: number | null;
+  deviations: string;
+  source: "live" | "upload";
 }
 
-const ACCEPT = "video/mp4,video/webm,video/quicktime,video/x-msvideo,video/avi,.mp4,.webm,.mov,.avi";
-const isVideo = (f: File) =>
-  /^video\/(mp4|webm|quicktime|x-msvideo|avi)$/.test(f.type) || /\.(mp4|webm|mov|avi)$/i.test(f.name);
+interface Props {
+  onAnalyze: (d: DetectedFile, subject: SubjectInfo, meta: RecordingMeta) => void;
+  busy?: boolean;
+}
 
-const MAX_SECONDS = 60;
+const DRAFT_KEY = "ns-gait-draft";
+
+const ACCEPT = ACCEPT_ATTR;
+const MAX_SECONDS = VIDEO_LIMITS.maxRecordSeconds;
 const UNSUPPORTED_MSG = "Live camera recording is not supported by this browser. Please upload a video instead.";
 const DENIED_MSG = "Camera access was denied. Please allow camera permission in your browser settings.";
 const NO_RECORDER_MSG = "Video recording is not supported by this browser. Please upload a video instead.";
@@ -56,7 +65,16 @@ const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${Str
 const inputCls =
   "mt-1 w-full rounded-lg border border-border bg-background/40 px-3 py-2 text-sm outline-none focus:border-primary";
 
-export function GaitVideoInput({ onAnalyze }: Props) {
+export function GaitVideoInput({ onAnalyze, busy }: Props) {
+  const [protocol, setProtocol] = useState<ProtocolId>("straight");
+  const [trial, setTrial] = useState("1");
+  const [distance, setDistance] = useState("");
+  const [deviations, setDeviations] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [deviceId, setDeviceId] = useState<string>("");
+  const [paused, setPaused] = useState(false);
+  const [insecure, setInsecure] = useState(false);
   const [mode, setMode] = useState<"live" | "upload">("live");
   const [video, setVideo] = useState<{ file: File; url: string; duration?: number } | null>(null);
   const [videoValid, setVideoValid] = useState(false);
@@ -65,6 +83,28 @@ export function GaitVideoInput({ onAnalyze }: Props) {
   const [subject, setSubjectState] = useState<SubjectInfo>({ subjectName: "", subjectId: "", age: "", sex: "", condition: "", notes: "" });
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof SubjectInfo, string>>>({});
   const fieldRefs = useRef<Partial<Record<keyof SubjectInfo, HTMLElement | null>>>({});
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    if (!busy) setSubmitted(false);
+  }, [busy]);
+  useEffect(() => {
+    setInsecure(!window.isSecureContext);
+    try {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
+      if (d?.subject) setSubjectState({ ...d.subject });
+      if (d?.protocol) setProtocol(d.protocol);
+      if (d?.trial) setTrial(String(d.trial));
+      if (d?.distance != null) setDistance(String(d.distance));
+      if (d?.deviations) setDeviations(d.deviations);
+    } catch { /* ignore */ }
+    draftLoaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (!draftLoaded.current) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ subject, protocol, trial, distance, deviations }));
+    } catch { /* ignore */ }
+  }, [subject, protocol, trial, distance, deviations]);
   const setSubject = (next: SubjectInfo) => {
     setFieldErrors((errs) => {
       const copy = { ...errs };
@@ -102,7 +142,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
     setStream(null);
   }
 
-  async function startCamera(face?: "user" | "environment") {
+  async function startCamera(face?: "user" | "environment", devId?: string) {
     if (!face) {
       // Prefer the rear camera on phones/tablets (better for filming another person walking).
       face = window.matchMedia?.("(pointer: coarse)").matches ? "environment" : "user";
@@ -123,20 +163,32 @@ export function GaitVideoInput({ onAnalyze }: Props) {
     setRequesting(true);
     try {
       const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: face }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: devId
+          ? { deviceId: { exact: devId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { facingMode: { ideal: face }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
       streamRef.current = s;
       setStream(s);
       try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        setHasMultipleCams(devices.filter((d) => d.kind === "videoinput").length > 1);
+        const all = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+        setDevices(all);
+        setHasMultipleCams(all.length > 1);
+        setDeviceId(s.getVideoTracks()[0]?.getSettings().deviceId ?? "");
       } catch {
         /* ignore */
       }
     } catch (e) {
       const name = (e as DOMException)?.name;
-      setError(name === "NotFoundError" ? "No camera was detected on this device." : DENIED_MSG);
+      setError(
+        name === "NotFoundError" || name === "OverconstrainedError"
+          ? "No camera was detected on this device."
+          : name === "NotReadableError"
+            ? "The camera is in use by another app or could not be started."
+            : name === "SecurityError" || !window.isSecureContext
+              ? "Camera access requires a secure (HTTPS) connection."
+              : DENIED_MSG,
+      );
     } finally {
       setRequesting(false);
     }
@@ -163,20 +215,27 @@ export function GaitVideoInput({ onAnalyze }: Props) {
   }, [stream, video]);
 
   useEffect(() => {
-    if (!recording) return;
+    if (!recording || paused) return;
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
-  }, [recording]);
+  }, [recording, paused]);
 
   useEffect(() => {
     if (recording && elapsed >= MAX_SECONDS) stopRecording();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, recording]);
 
+  useEffect(() => {
+    if (!video && !recording) return;
+    const h = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", h);
+    return () => window.removeEventListener("beforeunload", h);
+  }, [video, recording]);
+
   // Release camera when leaving the component.
   useEffect(
     () => () => {
-      if (recRef.current?.state === "recording") recRef.current.stop();
+      if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
       streamRef.current?.getTracks().forEach((t) => t.stop());
     },
     [],
@@ -201,11 +260,12 @@ export function GaitVideoInput({ onAnalyze }: Props) {
     setError(null);
     rec.ondataavailable = (e) => e.data.size && chunks.current.push(e.data);
     rec.onstop = () => {
+      setPaused(false);
       stopCamera();
       const mime = (rec.mimeType || "video/webm").split(";")[0];
       const ext = mime.includes("mp4") ? "mp4" : "webm";
       const file = new File(chunks.current, `live-recording-${Date.now()}.${ext}`, { type: mime });
-      if (!file.size) {
+      if (!file.size || chunks.current.length === 0) {
         setError("Recording failed — no video data was captured. Please record again.");
         return;
       }
@@ -219,15 +279,22 @@ export function GaitVideoInput({ onAnalyze }: Props) {
     setRecording(true);
   }
 
+  function togglePause() {
+    const r = recRef.current;
+    if (!r || typeof r.pause !== "function") return;
+    if (r.state === "recording") { r.pause(); setPaused(true); }
+    else if (r.state === "paused") { r.resume(); setPaused(false); }
+  }
+
   function stopRecording() {
-    if (recRef.current?.state === "recording") recRef.current.stop();
+    if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
     setRecording(false);
   }
 
   function retake() {
     clearVideo();
     setElapsed(0);
-    void startCamera(facing);
+    void startCamera(facing, deviceId || undefined);
   }
 
   function confirmVideo() {
@@ -251,8 +318,9 @@ export function GaitVideoInput({ onAnalyze }: Props) {
 
   function pickFile(f: File | undefined) {
     if (!f) return;
-    if (!isVideo(f)) {
-      setError("Unsupported format. Please choose an MP4, WebM, MOV or AVI video.");
+    const bad = checkVideoFile(f);
+    if (bad) {
+      setError(bad);
       return;
     }
     setError(null);
@@ -261,7 +329,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
   }
 
   function analyze() {
-    if (!video) return;
+    if (!video || submitted || busy) return;
     const parsed = subjectSchema.safeParse(subject);
     if (!parsed.success) {
       const errs: Partial<Record<keyof SubjectInfo, string>> = {};
@@ -274,8 +342,17 @@ export function GaitVideoInput({ onAnalyze }: Props) {
       if (first) fieldRefs.current[first]?.focus();
       return;
     }
+    const t = Number(trial);
+    const dist = distance.trim() ? Number(distance) : null;
+    if (!Number.isInteger(t) || t < 1 || t > 50) { setError("Trial number must be a whole number from 1 to 50."); return; }
+    if (dist != null && (!Number.isFinite(dist) || dist <= 0 || dist > 100)) { setError("Walking distance must be between 0 and 100 m, or left empty."); return; }
+    if (video.duration != null && video.duration < VIDEO_LIMITS.minDurationSec) { setError(`The video is shorter than ${VIDEO_LIMITS.minDurationSec} seconds. Record several walking cycles.`); return; }
+    setSubmitted(true);
     stopCamera();
-    onAnalyze({ file: video.file, kind: "gait", previewUrl: video.url }, parsed.data as SubjectInfo);
+    try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    onAnalyze({ file: video.file, kind: "gait", previewUrl: video.url }, parsed.data as SubjectInfo, {
+      protocol, trialNumber: t, walkingDistanceM: dist, deviations, source: mode,
+    });
   }
 
   function field(key: keyof SubjectInfo, label: string, span: string, control: React.ReactElement<any>) {
@@ -331,9 +408,22 @@ export function GaitVideoInput({ onAnalyze }: Props) {
               <div className="text-xs text-muted-foreground">
                 Status:{" "}
                 <span className="text-foreground">
-                  {recording ? "Recording" : video ? "Recording finished — review below" : requesting ? "Requesting permission…" : stream ? "Camera ready" : "Camera off"}
+                  {recording ? (paused ? "Paused" : "Recording") : video ? "Recording finished — review below" : requesting ? "Requesting permission…" : stream ? "Camera ready" : "Camera off"}
                 </span>
               </div>
+              {insecure && (
+                <div className="rounded-lg border border-border/60 p-3 text-xs text-muted-foreground">
+                  Camera access needs a secure (HTTPS) page and your permission. Open the app over https:// to record.
+                </div>
+              )}
+              {!video && stream && devices.length > 1 && !recording && (
+                <label className="block text-xs text-muted-foreground">
+                  Camera
+                  <select className={inputCls} value={deviceId} onChange={(e) => { setDeviceId(e.target.value); void startCamera(facing, e.target.value); }}>
+                    {devices.map((d, i) => <option key={d.deviceId || i} value={d.deviceId}>{d.label || `Camera ${i + 1}`}</option>)}
+                  </select>
+                </label>
+              )}
               {!video && (
                 <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-background/60 aspect-video">
                   {stream ? (
@@ -357,7 +447,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
                   {stream && (
                     <div className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-lg bg-background/80 px-2.5 py-1 text-xs font-mono">
                       <span className={`h-2 w-2 rounded-full ${recording ? "bg-destructive animate-pulse" : "bg-muted-foreground"}`} />
-                      {recording ? "🔴 Recording" : "Camera ready"} {fmt(elapsed)} / {fmt(MAX_SECONDS)}
+                      {recording ? (paused ? "⏸ Paused" : "🔴 Recording") : "Camera ready"} {fmt(elapsed)} / {fmt(MAX_SECONDS)}
                     </div>
                   )}
                   {stream && !recording && hasMultipleCams && (
@@ -372,6 +462,11 @@ export function GaitVideoInput({ onAnalyze }: Props) {
                 {!video && !recording && stream && (
                   <button type="button" onClick={startRecording} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground glow-primary">
                     <Circle className="h-4 w-4" /> Start Recording
+                  </button>
+                )}
+                {recording && typeof MediaRecorder !== "undefined" && typeof MediaRecorder.prototype.pause === "function" && (
+                  <button type="button" onClick={togglePause} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:border-primary">
+                    {paused ? <><Circle className="h-4 w-4" /> Resume</> : <><Pause className="h-4 w-4" /> Pause</>}
                   </button>
                 )}
                 {recording && (
@@ -403,7 +498,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
               >
                 <FolderOpen className="h-8 w-8 text-cyan" />
                 <span className="mt-3 text-sm font-medium">Choose or drop a walking video</span>
-                <span className="mt-1 text-xs text-muted-foreground">MP4, WebM or MOV</span>
+                <span className="mt-1 text-xs text-muted-foreground">MP4, WebM or MOV · up to {VIDEO_LIMITS.maxBytes / 1048576} MB</span>
                 <input type="file" accept={ACCEPT} className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
               </label>
             )
@@ -439,6 +534,36 @@ export function GaitVideoInput({ onAnalyze }: Props) {
 
           <fieldset className="rounded-2xl border border-border/60 p-4">
             <legend className="flex items-center gap-2 px-1 text-sm font-medium">
+              <ClipboardList className="h-4 w-4 text-cyan" /> Recording Protocol
+            </legend>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <label className="block text-xs text-muted-foreground sm:col-span-3">
+                Protocol
+                <select className={inputCls} value={protocol} onChange={(e) => setProtocol(e.target.value as ProtocolId)}>
+                  {PROTOCOLS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </select>
+              </label>
+              <ul className="sm:col-span-3 space-y-1 text-xs text-muted-foreground">
+                {protocolById(protocol).instructions.map((i) => <li key={i} className="flex gap-2"><Check className="h-3.5 w-3.5 shrink-0 text-cyan" />{i}</li>)}
+                <li className="text-[11px]">Expected camera angle: {protocolById(protocol).expectedView ?? "any (front or side)"} · minimum {protocolById(protocol).minDurationSec} s</li>
+              </ul>
+              <label className="block text-xs text-muted-foreground">
+                Trial number
+                <input type="text" inputMode="numeric" className={inputCls} value={trial} onChange={(e) => setTrial(e.target.value.replace(/\D/g, "").slice(0, 2))} />
+              </label>
+              <label className="block text-xs text-muted-foreground sm:col-span-2">
+                Walking distance (m, if known)
+                <input type="text" inputMode="decimal" className={inputCls} value={distance} onChange={(e) => setDistance(e.target.value.replace(/[^\d.]/g, "").slice(0, 6))} placeholder="e.g. 6" />
+              </label>
+              <label className="block text-xs text-muted-foreground sm:col-span-3">
+                Protocol deviations (optional)
+                <input type="text" className={inputCls} value={deviations} maxLength={1000} onChange={(e) => setDeviations(e.target.value)} placeholder="e.g. used walking aid, stopped once" />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="rounded-2xl border border-border/60 p-4">
+            <legend className="flex items-center gap-2 px-1 text-sm font-medium">
               <UserRound className="h-4 w-4 text-cyan" /> Subject Information <span className="text-destructive">*</span>
             </legend>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -460,7 +585,7 @@ export function GaitVideoInput({ onAnalyze }: Props) {
             Only upload or record subjects with appropriate consent. Video data should be handled according to your institutional and research requirements.
           </div>
 
-          <button type="button" disabled={!video || recording || !videoValid || (mode === "live" && !confirmed)} onClick={analyze} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground glow-primary hover:brightness-110 disabled:opacity-50">
+          <button type="button" disabled={!video || recording || !videoValid || (mode === "live" && !confirmed) || submitted || busy} onClick={analyze} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground glow-primary hover:brightness-110 disabled:opacity-50">
             <Play className="h-4 w-4" /> {mode === "live" ? "Analyze Recording" : "Analyze Video"}
           </button>
         </div>

@@ -15,6 +15,13 @@
       "when": 1791860963615,
       "tag": "0001_revoke_anon_has_role",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791861174582,
+      "tag": "0002_video_job_pipeline",
+      "breakpoints": true
     }
   ]
 }

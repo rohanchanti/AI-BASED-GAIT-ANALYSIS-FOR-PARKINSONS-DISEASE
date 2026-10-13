@@ -18,50 +18,71 @@ export type Database = {
         Row: {
           analysis_code: string | null
           analysis_mode: string | null
+          attempts: number
           completed_at: string | null
           error_message: string | null
           feature_pipeline_version: string | null
+          heartbeat_at: string | null
           id: string
           model_version: string | null
           owner_id: string
           platform_version: string | null
           pose_estimator_version: string | null
           preprocessing_config: Json
+          progress: number
+          quality_report: Json | null
           recording_id: string
+          session_key: string | null
+          stage: string | null
           started_at: string
           status: string
+          updated_at: string
         }
         Insert: {
           analysis_code?: string | null
           analysis_mode?: string | null
+          attempts?: number
           completed_at?: string | null
           error_message?: string | null
           feature_pipeline_version?: string | null
+          heartbeat_at?: string | null
           id?: string
           model_version?: string | null
           owner_id: string
           platform_version?: string | null
           pose_estimator_version?: string | null
           preprocessing_config?: Json
+          progress?: number
+          quality_report?: Json | null
           recording_id: string
+          session_key?: string | null
+          stage?: string | null
           started_at?: string
           status?: string
+          updated_at?: string
         }
         Update: {
           analysis_code?: string | null
           analysis_mode?: string | null
+          attempts?: number
           completed_at?: string | null
           error_message?: string | null
           feature_pipeline_version?: string | null
+          heartbeat_at?: string | null
           id?: string
           model_version?: string | null
           owner_id?: string
           platform_version?: string | null
           pose_estimator_version?: string | null
           preprocessing_config?: Json
+          progress?: number
+          quality_report?: Json | null
           recording_id?: string
+          session_key?: string | null
+          stage?: string | null
           started_at?: string
           status?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -229,6 +250,7 @@ export type Database = {
           parameters: Json
           pose_metrics: Json | null
           quality: Json | null
+          result_payload: Json | null
           run_id: string
           validation: Json | null
         }
@@ -243,6 +265,7 @@ export type Database = {
           parameters?: Json
           pose_metrics?: Json | null
           quality?: Json | null
+          result_payload?: Json | null
           run_id: string
           validation?: Json | null
         }
@@ -257,6 +280,7 @@ export type Database = {
           parameters?: Json
           pose_metrics?: Json | null
           quality?: Json | null
+          result_payload?: Json | null
           run_id?: string
           validation?: Json | null
         }
@@ -334,6 +358,7 @@ export type Database = {
         Row: {
           camera_view: string | null
           created_at: string
+          deviations: string | null
           duration_sec: number | null
           fps: number | null
           height: number | null
@@ -343,9 +368,12 @@ export type Database = {
           original_filename: string | null
           owner_id: string
           processing_status: string
+          protocol: string | null
+          protocol_checks: Json | null
           size_bytes: number | null
           source: string
           storage_path: string | null
+          trial_number: number | null
           visit_id: string
           walking_distance_m: number | null
           width: number | null
@@ -353,6 +381,7 @@ export type Database = {
         Insert: {
           camera_view?: string | null
           created_at?: string
+          deviations?: string | null
           duration_sec?: number | null
           fps?: number | null
           height?: number | null
@@ -362,9 +391,12 @@ export type Database = {
           original_filename?: string | null
           owner_id: string
           processing_status?: string
+          protocol?: string | null
+          protocol_checks?: Json | null
           size_bytes?: number | null
           source: string
           storage_path?: string | null
+          trial_number?: number | null
           visit_id: string
           walking_distance_m?: number | null
           width?: number | null
@@ -372,6 +404,7 @@ export type Database = {
         Update: {
           camera_view?: string | null
           created_at?: string
+          deviations?: string | null
           duration_sec?: number | null
           fps?: number | null
           height?: number | null
@@ -381,9 +414,12 @@ export type Database = {
           original_filename?: string | null
           owner_id?: string
           processing_status?: string
+          protocol?: string | null
+          protocol_checks?: Json | null
           size_bytes?: number | null
           source?: string
           storage_path?: string | null
+          trial_number?: number | null
           visit_id?: string
           walking_distance_m?: number | null
           width?: number | null
