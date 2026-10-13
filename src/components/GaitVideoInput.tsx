@@ -85,6 +85,9 @@ export function GaitVideoInput({ onAnalyze, busy }: Props) {
   const fieldRefs = useRef<Partial<Record<keyof SubjectInfo, HTMLElement | null>>>({});
   const draftLoaded = useRef(false);
   useEffect(() => {
+    if (!busy) setSubmitted(false);
+  }, [busy]);
+  useEffect(() => {
     setInsecure(!window.isSecureContext);
     try {
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null");
