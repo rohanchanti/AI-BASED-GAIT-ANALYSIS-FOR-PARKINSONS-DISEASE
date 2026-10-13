@@ -66,7 +66,6 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
     startedFor.current = attempt;
     const controller = new AbortController();
     ctrlRef.current = controller;
-    let cancelled = false;
     const signal = controller.signal;
     const protocol = protocolById(job?.protocol ?? "straight");
 
@@ -94,7 +93,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           }
           const runId = runIdRef.current!;
           const { path, token } = await createUploadUrl({ data: { runId } });
-          await uploadWithRetry(path, token, file, (p) => !cancelled && setUploadPct(p), signal);
+          await uploadWithRetry(path, token, file, (p) => !signal.aborted && setUploadPct(p), signal);
           setUploadPct(1);
           const v = await verifyUpload({ data: { runId } });
           if (!v.ok) {
@@ -106,7 +105,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           if (kind === "gait") setNotice("Not signed in — the video is analysed on this device only and is not stored or tracked.");
           setUploadPct(1);
         }
-        if (cancelled) return;
+        if (signal.aborted) throw new UploadCancelled("Cancelled.");
         setPhase("analyze");
 
         // ---------- Analysis ----------
@@ -124,7 +123,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           const measurements = await analyzeVideoFile(
             file,
             (p) => {
-              if (!cancelled) setAnalysisPct(p * 0.3);
+              if (!signal.aborted) setAnalysisPct(p * 0.3);
               beat("frame_decoding", 0.05 + p * 0.25);
             },
             signal,
@@ -136,7 +135,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
               file,
               { subjectHeightMeters },
               (p) => {
-                if (!cancelled) setAnalysisPct(0.3 + p.progress * 0.65);
+                if (!signal.aborted) setAnalysisPct(0.3 + p.progress * 0.65);
                 beat(p.stage === "EXTRACTING_LANDMARKS" ? "pose_detection" : "feature_calculation", 0.3 + p.progress * 0.6);
               },
               signal,
@@ -145,7 +144,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
             if (signal.aborted) throw e;
             pose = null;
           }
-          if (cancelled) return;
+          if (signal.aborted) throw new UploadCancelled("Cancelled.");
           if (!pose) {
             const msg = "Pose detection could not run on this video. It may be corrupted or use an unsupported codec.";
             persistPoseAnalysis(null);
@@ -185,18 +184,17 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
             });
         } else {
           for (let i = 0; i <= 20; i++) {
-            if (cancelled) return;
+            if (signal.aborted) throw new UploadCancelled("Cancelled.");
             setAnalysisPct(i / 20);
             await new Promise((r) => setTimeout(r, 60));
           }
           result = generateMockAnalysis("facial", mode, file.name);
         }
-        if (cancelled) return;
+        if (signal.aborted) throw new UploadCancelled("Cancelled.");
         setAnalysisPct(1);
         onComplete(result, { runId: runIdRef.current, warnings });
       } catch (err) {
-        if (cancelled && !(err instanceof UploadCancelled)) return;
-        if (signal.aborted || err instanceof UploadCancelled) {
+                if (signal.aborted || err instanceof UploadCancelled) {
           await status({ status: "cancelled", error: "Cancelled by user." });
           onError?.("Analysis cancelled.");
           return;
@@ -208,14 +206,21 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
 
   // Abort work if the screen is left.
-  useEffect(() => () => ctrlRef.current?.abort(), []);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      // Deferred so a dev-mode remount does not abort the running job.
+      setTimeout(() => {
+        if (!mounted.current) ctrlRef.current?.abort();
+      }, 0);
+    };
+  }, []);
 
   function cancel() {
     ctrlRef.current?.abort();
