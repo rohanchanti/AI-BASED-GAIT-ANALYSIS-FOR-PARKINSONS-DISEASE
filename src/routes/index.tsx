@@ -5,7 +5,7 @@ import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
 import { AnalysisModePicker, type AnalysisMode } from "@/components/AnalysisModePicker";
 import { GaitVideoInput, subjectSchema, type SubjectInfo, type RecordingMeta } from "@/components/GaitVideoInput";
-import { ProcessingScreen as _PS, type JobRequest } from "@/components/ProcessingScreen";
+import { ProcessingScreen, type JobRequest } from "@/components/ProcessingScreen";
 import { protocolById } from "@/lib/video-config";
 import type { QualityIssue } from "@/lib/video-config";
 import { PatientForm, type PatientInfo } from "@/components/PatientForm";
@@ -417,7 +417,7 @@ function LandingPage() {
         />
       )}
       {stage === "processing" && detected && mode && (
-        <_PS
+        <ProcessingScreen
           subjectHeightMeters={
             patient?.heightCm && Number(patient.heightCm) > 80
               ? Number(patient.heightCm) / 100

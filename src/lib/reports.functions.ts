@@ -33,6 +33,7 @@ const saveInput = z.object({
   analysis_code: z.string().max(40).optional(),
   analysis_timestamp: z.string().max(40).optional(),
   versions: z.record(z.string(), z.string().nullable()).optional(),
+  analysis_run_id: z.string().uuid().optional(),
   pose: z
     .object({
       metrics: z.any().optional(),
@@ -73,6 +74,15 @@ export const saveReport = createServerFn({ method: "POST" })
 
     // Link subject → visit → recording → run → result. Failure never blocks the legacy report.
     let runId: string | null = null;
+    if (data.analysis_run_id) {
+      // Job already persisted subject → visit → recording → run → result; just link it.
+      const { data: run } = await supabase.from("analysis_runs").select("id").eq("id", data.analysis_run_id).maybeSingle();
+      if (run) {
+        await supabase.from("reports").update({ analysis_run_id: run.id }).eq("id", row.id);
+        await supabase.from("audit_log").insert({ actor_id: userId, action: "analysis_saved", entity: "analysis_runs", entity_id: run.id, details: { report_id: row.id } });
+        return { id: row.id, runId: run.id };
+      }
+    }
     try {
       const code = data.subject_code ?? `S-${crypto.randomUUID().slice(0, 8)}`;
       const { data: subj, error: se } = await supabase
