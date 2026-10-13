@@ -81,7 +81,7 @@ export const STATUS_LABEL: Record<string, string> = {
 };
 
 // ---------- Protocols ----------
-export type ProtocolId = "straight" | "tug" | "front" | "side";
+export type ProtocolId = "straight" | "tug" | "10mwt" | "front" | "side";
 export interface Protocol {
   id: ProtocolId;
   label: string;
@@ -106,6 +106,14 @@ export const PROTOCOLS: Protocol[] = [
     expectedView: "side",
     minDurationSec: 5,
     instructions: ["Start seated in a chair with arms.", "Stand, walk 3 m, turn, walk back, sit down.", "Keep the chair and the 3 m line in view."],
+  },
+  {
+    id: "10mwt",
+    label: "10-Metre Walk Test (10MWT)",
+    mode: "side",
+    expectedView: "side",
+    minDurationSec: 4,
+    instructions: ["Mark 2 m acceleration, 10 m timed and 2 m deceleration zones.", "Keep both 10 m marks visible in the frame.", "Walk at a self-selected pace; the operator marks start/stop on the video afterwards."],
   },
   {
     id: "front",

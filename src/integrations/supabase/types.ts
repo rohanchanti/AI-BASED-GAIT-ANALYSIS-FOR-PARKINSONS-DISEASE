@@ -124,6 +124,48 @@ export type Database = {
         }
         Relationships: []
       }
+      clinical_reports: {
+        Row: {
+          content: Json
+          created_at: string
+          id: string
+          owner_id: string
+          run_id: string
+          visit_id: string
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          id?: string
+          owner_id: string
+          run_id: string
+          visit_id: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          id?: string
+          owner_id?: string
+          run_id?: string
+          visit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinical_reports_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinical_reports_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinician_reviews: {
         Row: {
           created_at: string
@@ -132,6 +174,7 @@ export type Database = {
           notes: string | null
           reviewer_id: string
           run_id: string
+          supersedes: string | null
         }
         Insert: {
           created_at?: string
@@ -140,6 +183,7 @@ export type Database = {
           notes?: string | null
           reviewer_id: string
           run_id: string
+          supersedes?: string | null
         }
         Update: {
           created_at?: string
@@ -148,6 +192,7 @@ export type Database = {
           notes?: string | null
           reviewer_id?: string
           run_id?: string
+          supersedes?: string | null
         }
         Relationships: [
           {
@@ -155,6 +200,13 @@ export type Database = {
             columns: ["run_id"]
             isOneToOne: false
             referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinician_reviews_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "clinician_reviews"
             referencedColumns: ["id"]
           },
         ]
@@ -326,6 +378,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      protocol_timings: {
+        Row: {
+          created_at: string
+          distance_m: number | null
+          end_sec: number
+          id: string
+          method: string
+          notes: string | null
+          owner_id: string
+          protocol: string
+          run_id: string
+          start_sec: number
+          verified_by: string
+        }
+        Insert: {
+          created_at?: string
+          distance_m?: number | null
+          end_sec: number
+          id?: string
+          method: string
+          notes?: string | null
+          owner_id: string
+          protocol: string
+          run_id: string
+          start_sec: number
+          verified_by: string
+        }
+        Update: {
+          created_at?: string
+          distance_m?: number | null
+          end_sec?: number
+          id?: string
+          method?: string
+          notes?: string | null
+          owner_id?: string
+          protocol?: string
+          run_id?: string
+          start_sec?: number
+          verified_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "protocol_timings_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       protocols: {
         Row: {
@@ -502,9 +604,273 @@ export type Database = {
           },
         ]
       }
+      research_annotations: {
+        Row: {
+          created_at: string
+          id: string
+          method: string
+          owner_id: string
+          parameter_key: string
+          participant_id: string
+          project_id: string
+          run_id: string | null
+          unit: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          method: string
+          owner_id: string
+          parameter_key: string
+          participant_id: string
+          project_id: string
+          run_id?: string | null
+          unit: string
+          value: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          method?: string
+          owner_id?: string
+          parameter_key?: string
+          participant_id?: string
+          project_id?: string
+          run_id?: string | null
+          unit?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_annotations_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "research_participants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_annotations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_annotations_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_datasets: {
+        Row: {
+          checksum: string
+          columns: Json
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          project_id: string
+          row_count: number
+          rows: Json
+          source: string
+          validation: Json
+          version: string
+        }
+        Insert: {
+          checksum: string
+          columns?: Json
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          project_id: string
+          row_count?: number
+          rows?: Json
+          source: string
+          validation?: Json
+          version: string
+        }
+        Update: {
+          checksum?: string
+          columns?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          project_id?: string
+          row_count?: number
+          rows?: Json
+          source?: string
+          validation?: Json
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_datasets_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_experiments: {
+        Row: {
+          created_at: string
+          features: Json
+          id: string
+          name: string
+          notes: string | null
+          owner_id: string
+          preprocessing: Json
+          project_id: string
+          results: Json | null
+          status: string
+          updated_at: string
+          versions: Json
+        }
+        Insert: {
+          created_at?: string
+          features?: Json
+          id?: string
+          name: string
+          notes?: string | null
+          owner_id: string
+          preprocessing?: Json
+          project_id: string
+          results?: Json | null
+          status?: string
+          updated_at?: string
+          versions?: Json
+        }
+        Update: {
+          created_at?: string
+          features?: Json
+          id?: string
+          name?: string
+          notes?: string | null
+          owner_id?: string
+          preprocessing?: Json
+          project_id?: string
+          results?: Json | null
+          status?: string
+          updated_at?: string
+          versions?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_experiments_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_participants: {
+        Row: {
+          created_at: string
+          exclusion_reason: string | null
+          id: string
+          included: boolean
+          metadata: Json
+          owner_id: string
+          participant_code: string
+          project_id: string
+          split: string | null
+          subject_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          exclusion_reason?: string | null
+          id?: string
+          included?: boolean
+          metadata?: Json
+          owner_id: string
+          participant_code: string
+          project_id: string
+          split?: string | null
+          subject_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          exclusion_reason?: string | null
+          id?: string
+          included?: boolean
+          metadata?: Json
+          owner_id?: string
+          participant_code?: string
+          project_id?: string
+          split?: string | null
+          subject_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "research_participants_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "research_projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "research_participants_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      research_projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          exclusion_criteria: string | null
+          id: string
+          inclusion_criteria: string | null
+          owner_id: string
+          project_code: string
+          protocol: Json
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          exclusion_criteria?: string | null
+          id?: string
+          inclusion_criteria?: string | null
+          owner_id: string
+          project_code: string
+          protocol?: Json
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          exclusion_criteria?: string | null
+          id?: string
+          inclusion_criteria?: string | null
+          owner_id?: string
+          project_code?: string
+          protocol?: Json
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       subjects: {
         Row: {
           age: number | null
+          clinical_history: string | null
           created_at: string
           display_name: string | null
           height_cm: number | null
@@ -519,6 +885,7 @@ export type Database = {
         }
         Insert: {
           age?: number | null
+          clinical_history?: string | null
           created_at?: string
           display_name?: string | null
           height_cm?: number | null
@@ -533,6 +900,7 @@ export type Database = {
         }
         Update: {
           age?: number | null
+          clinical_history?: string | null
           created_at?: string
           display_name?: string | null
           height_cm?: number | null
@@ -571,41 +939,63 @@ export type Database = {
       visits: {
         Row: {
           clinical_scores: Json
+          consent_id: string | null
           created_at: string
           id: string
+          is_baseline: boolean
           medication_state: string | null
           notes: string | null
           owner_id: string
+          protocol: string | null
           protocol_id: string | null
           recording_condition: string | null
+          status: string
           subject_id: string
+          visit_code: string | null
           visit_date: string
         }
         Insert: {
           clinical_scores?: Json
+          consent_id?: string | null
           created_at?: string
           id?: string
+          is_baseline?: boolean
           medication_state?: string | null
           notes?: string | null
           owner_id: string
+          protocol?: string | null
           protocol_id?: string | null
           recording_condition?: string | null
+          status?: string
           subject_id: string
+          visit_code?: string | null
           visit_date?: string
         }
         Update: {
           clinical_scores?: Json
+          consent_id?: string | null
           created_at?: string
           id?: string
+          is_baseline?: boolean
           medication_state?: string | null
           notes?: string | null
           owner_id?: string
+          protocol?: string | null
           protocol_id?: string | null
           recording_condition?: string | null
+          status?: string
           subject_id?: string
+          visit_code?: string | null
           visit_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "visits_consent_id_fkey"
+            columns: ["consent_id"]
+            isOneToOne: false
+            referencedRelation: "consents"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "visits_protocol_id_fkey"
             columns: ["protocol_id"]
