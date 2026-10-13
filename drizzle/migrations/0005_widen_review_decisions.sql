@@ -1,0 +1,2 @@
+ALTER TABLE public.clinician_reviews DROP CONSTRAINT clinician_reviews_decision_check;
+ALTER TABLE public.clinician_reviews ADD CONSTRAINT clinician_reviews_decision_check CHECK (decision = ANY (ARRAY['noted','accepted','needs_repeat','rejected','pending','reviewed']));

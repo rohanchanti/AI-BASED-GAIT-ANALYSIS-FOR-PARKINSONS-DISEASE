@@ -143,7 +143,7 @@ export const createVisit = createServerFn({ method: "POST" })
     if (!subj) throw new Error("Patient not found or not accessible.");
     const { data: consent, error: ce } = await supabase
       .from("consents")
-      .insert({ owner_id: userId, subject_id: data.subjectId, consent_type: "video_recording_clinical", granted: true, document_version: data.consent.documentVersion, notes: `Recorded by ${data.consent.recordedBy}` })
+      .insert({ owner_id: userId, subject_id: data.subjectId, consent_type: "clinical_care", granted: true, document_version: data.consent.documentVersion, notes: `Recorded by ${data.consent.recordedBy}` })
       .select("id")
       .single();
     if (ce) throw new Error(ce.message);
