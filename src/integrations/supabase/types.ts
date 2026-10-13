@@ -14,6 +14,262 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_runs: {
+        Row: {
+          analysis_code: string | null
+          analysis_mode: string | null
+          completed_at: string | null
+          error_message: string | null
+          feature_pipeline_version: string | null
+          id: string
+          model_version: string | null
+          owner_id: string
+          platform_version: string | null
+          pose_estimator_version: string | null
+          preprocessing_config: Json
+          recording_id: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          analysis_code?: string | null
+          analysis_mode?: string | null
+          completed_at?: string | null
+          error_message?: string | null
+          feature_pipeline_version?: string | null
+          id?: string
+          model_version?: string | null
+          owner_id: string
+          platform_version?: string | null
+          pose_estimator_version?: string | null
+          preprocessing_config?: Json
+          recording_id: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          analysis_code?: string | null
+          analysis_mode?: string | null
+          completed_at?: string | null
+          error_message?: string | null
+          feature_pipeline_version?: string | null
+          id?: string
+          model_version?: string | null
+          owner_id?: string
+          platform_version?: string | null
+          pose_estimator_version?: string | null
+          preprocessing_config?: Json
+          recording_id?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_runs_recording_id_fkey"
+            columns: ["recording_id"]
+            isOneToOne: false
+            referencedRelation: "recordings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          details: Json
+          entity: string
+          entity_id: string | null
+          id: number
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity: string
+          entity_id?: string | null
+          id?: never
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          details?: Json
+          entity?: string
+          entity_id?: string | null
+          id?: never
+        }
+        Relationships: []
+      }
+      clinician_reviews: {
+        Row: {
+          created_at: string
+          decision: string
+          id: string
+          notes: string | null
+          reviewer_id: string
+          run_id: string
+        }
+        Insert: {
+          created_at?: string
+          decision?: string
+          id?: string
+          notes?: string | null
+          reviewer_id: string
+          run_id: string
+        }
+        Update: {
+          created_at?: string
+          decision?: string
+          id?: string
+          notes?: string | null
+          reviewer_id?: string
+          run_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinician_reviews_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consents: {
+        Row: {
+          consent_type: string
+          document_version: string | null
+          granted: boolean
+          id: string
+          notes: string | null
+          owner_id: string
+          recorded_at: string
+          subject_id: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          consent_type: string
+          document_version?: string | null
+          granted: boolean
+          id?: string
+          notes?: string | null
+          owner_id: string
+          recorded_at?: string
+          subject_id: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          consent_type?: string
+          document_version?: string | null
+          granted?: boolean
+          id?: string
+          notes?: string | null
+          owner_id?: string
+          recorded_at?: string
+          subject_id?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consents_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      export_log: {
+        Row: {
+          created_at: string
+          deidentified: boolean
+          format: string
+          id: string
+          run_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deidentified?: boolean
+          format: string
+          id?: string
+          run_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deidentified?: boolean
+          format?: string
+          id?: string
+          run_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "export_log_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gait_results: {
+        Row: {
+          created_at: string
+          events: Json | null
+          id: string
+          landmark_summary: Json | null
+          model_confidence: number | null
+          model_score: number | null
+          owner_id: string
+          parameters: Json
+          pose_metrics: Json | null
+          quality: Json | null
+          run_id: string
+          validation: Json | null
+        }
+        Insert: {
+          created_at?: string
+          events?: Json | null
+          id?: string
+          landmark_summary?: Json | null
+          model_confidence?: number | null
+          model_score?: number | null
+          owner_id: string
+          parameters?: Json
+          pose_metrics?: Json | null
+          quality?: Json | null
+          run_id: string
+          validation?: Json | null
+        }
+        Update: {
+          created_at?: string
+          events?: Json | null
+          id?: string
+          landmark_summary?: Json | null
+          model_confidence?: number | null
+          model_score?: number | null
+          owner_id?: string
+          parameters?: Json
+          pose_metrics?: Json | null
+          quality?: Json | null
+          run_id?: string
+          validation?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gait_results_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: true
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -38,9 +294,114 @@ export type Database = {
         }
         Relationships: []
       }
+      protocols: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          settings: Json
+          test_type: string
+          updated_at: string
+          version: number
+          workflow: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_id: string
+          settings?: Json
+          test_type?: string
+          updated_at?: string
+          version?: number
+          workflow?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          settings?: Json
+          test_type?: string
+          updated_at?: string
+          version?: number
+          workflow?: string
+        }
+        Relationships: []
+      }
+      recordings: {
+        Row: {
+          camera_view: string | null
+          created_at: string
+          duration_sec: number | null
+          fps: number | null
+          height: number | null
+          id: string
+          mime_type: string | null
+          modality: string
+          original_filename: string | null
+          owner_id: string
+          processing_status: string
+          size_bytes: number | null
+          source: string
+          storage_path: string | null
+          visit_id: string
+          walking_distance_m: number | null
+          width: number | null
+        }
+        Insert: {
+          camera_view?: string | null
+          created_at?: string
+          duration_sec?: number | null
+          fps?: number | null
+          height?: number | null
+          id?: string
+          mime_type?: string | null
+          modality?: string
+          original_filename?: string | null
+          owner_id: string
+          processing_status?: string
+          size_bytes?: number | null
+          source: string
+          storage_path?: string | null
+          visit_id: string
+          walking_distance_m?: number | null
+          width?: number | null
+        }
+        Update: {
+          camera_view?: string | null
+          created_at?: string
+          duration_sec?: number | null
+          fps?: number | null
+          height?: number | null
+          id?: string
+          mime_type?: string | null
+          modality?: string
+          original_filename?: string | null
+          owner_id?: string
+          processing_status?: string
+          size_bytes?: number | null
+          source?: string
+          storage_path?: string | null
+          visit_id?: string
+          walking_distance_m?: number | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recordings_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           age: number | null
+          analysis_run_id: string | null
           confidence: number
           created_at: string
           gender: string | null
@@ -56,6 +417,7 @@ export type Database = {
         }
         Insert: {
           age?: number | null
+          analysis_run_id?: string | null
           confidence: number
           created_at?: string
           gender?: string | null
@@ -71,6 +433,7 @@ export type Database = {
         }
         Update: {
           age?: number | null
+          analysis_run_id?: string | null
           confidence?: number
           created_at?: string
           gender?: string | null
@@ -84,17 +447,169 @@ export type Database = {
           risk_level?: string
           user_id?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "reports_analysis_run_id_fkey"
+            columns: ["analysis_run_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subjects: {
+        Row: {
+          age: number | null
+          created_at: string
+          display_name: string | null
+          height_cm: number | null
+          id: string
+          owner_id: string
+          retention_status: string
+          sex: string | null
+          subject_code: string
+          updated_at: string
+          weight_kg: number | null
+          workflow: string
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string
+          display_name?: string | null
+          height_cm?: number | null
+          id?: string
+          owner_id: string
+          retention_status?: string
+          sex?: string | null
+          subject_code: string
+          updated_at?: string
+          weight_kg?: number | null
+          workflow?: string
+        }
+        Update: {
+          age?: number | null
+          created_at?: string
+          display_name?: string | null
+          height_cm?: number | null
+          id?: string
+          owner_id?: string
+          retention_status?: string
+          sex?: string | null
+          subject_code?: string
+          updated_at?: string
+          weight_kg?: number | null
+          workflow?: string
+        }
         Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      visits: {
+        Row: {
+          clinical_scores: Json
+          created_at: string
+          id: string
+          medication_state: string | null
+          notes: string | null
+          owner_id: string
+          protocol_id: string | null
+          recording_condition: string | null
+          subject_id: string
+          visit_date: string
+        }
+        Insert: {
+          clinical_scores?: Json
+          created_at?: string
+          id?: string
+          medication_state?: string | null
+          notes?: string | null
+          owner_id: string
+          protocol_id?: string | null
+          recording_condition?: string | null
+          subject_id: string
+          visit_date?: string
+        }
+        Update: {
+          clinical_scores?: Json
+          created_at?: string
+          id?: string
+          medication_state?: string | null
+          notes?: string | null
+          owner_id?: string
+          protocol_id?: string | null
+          recording_condition?: string | null
+          subject_id?: string
+          visit_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_protocol_id_fkey"
+            columns: ["protocol_id"]
+            isOneToOne: false
+            referencedRelation: "protocols"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      research_coded_results: {
+        Args: never
+        Returns: {
+          age: number
+          completed_at: string
+          feature_pipeline_version: string
+          modality: string
+          model_version: string
+          parameters: Json
+          pose_estimator_version: string
+          quality: Json
+          recording_condition: string
+          run_id: string
+          sex: string
+          subject_code: string
+          visit_date: string
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "clinician" | "researcher"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -221,6 +736,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "clinician", "researcher"],
+    },
   },
 } as const
