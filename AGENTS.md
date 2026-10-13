@@ -13,3 +13,4 @@
 - Researchers read data only via the coded `research_coded_results()` function, never the subjects table. Why: keeps identifiable names out of research access.
 - Gait video jobs: files go to the private `recordings` bucket via signed upload URLs, status lives on `analysis_runs` (queued→uploading→processing→completed/completed_with_warnings/failed/cancelled) and pose/gait compute runs in the browser. Why: the edge server cannot decode video or run MediaPipe; server keeps the durable state.
 - Upload limits, allowed formats, protocols and quality-gate thresholds live only in `src/lib/video-config.ts`. Why: one place to tune rules, shared by UI, server and tests.
+- Gait parameters come only from `src/lib/gait-engine/` (registry + compute returning value-or-unavailable with reason); per-frame landmarks and engine output are persisted on `gait_results`. Why: every displayed number must trace to a documented formula and stored inputs.
