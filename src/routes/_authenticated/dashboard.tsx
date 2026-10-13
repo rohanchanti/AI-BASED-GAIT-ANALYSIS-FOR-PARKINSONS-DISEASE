@@ -19,6 +19,7 @@ import { saveReport, listReports } from "@/lib/reports.functions";
 import type { AnalysisResult, ClinicalStatus, ParameterRow } from "@/lib/mock-analysis";
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
 import { readPoseAnalysis } from "@/lib/pose-session";
+import { TraceableParameters } from "@/components/gait/TraceableParameters";
 import { PoseAnalysisSection } from "@/components/gait/PoseAnalysisSection";
 import { GaitVisualization } from "@/components/gait/GaitVisualization";
 import { AnalysisOverview } from "@/components/research/AnalysisOverview";
@@ -368,6 +369,7 @@ function DashboardPage() {
           {/* Gait results visualization */}
           {stored.result.kind === "gait" && <div className="glass rounded-2xl p-6">
             <GaitVisualization result={stored.result} pose={pose} />
+            <TraceableParameters />
           </div>}
 
           {/* MediaPipe pose analysis (real landmark geometry) */}
