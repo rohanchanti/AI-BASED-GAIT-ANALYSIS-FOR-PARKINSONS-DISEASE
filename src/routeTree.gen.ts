@@ -21,6 +21,8 @@ import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedVoiceAnalysisRouteImport } from './routes/_authenticated/voice-analysis'
 import { Route as AuthenticatedWorkspaceRouteImport } from './routes/_authenticated/workspace'
 import { Route as AuthenticatedClinicalIndexRouteImport } from './routes/_authenticated/clinical/index'
+import { Route as AuthenticatedResearchProjectsIndexRouteImport } from './routes/_authenticated/research-projects/index'
+import { Route as AuthenticatedResearchProjectsIdRouteImport } from './routes/_authenticated/research-projects/$id'
 import { Route as AuthenticatedClinicalPatientsIdRouteImport } from './routes/_authenticated/clinical/patients.$id'
 import { Route as AuthenticatedClinicalVisitsIdRouteImport } from './routes/_authenticated/clinical/visits.$id'
 
@@ -85,6 +87,18 @@ const AuthenticatedClinicalIndexRoute =
     path: '/clinical/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedResearchProjectsIndexRoute =
+  AuthenticatedResearchProjectsIndexRouteImport.update({
+    id: '/research-projects/',
+    path: '/research-projects/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedResearchProjectsIdRoute =
+  AuthenticatedResearchProjectsIdRouteImport.update({
+    id: '/research-projects/$id',
+    path: '/research-projects/$id',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedClinicalPatientsIdRoute =
   AuthenticatedClinicalPatientsIdRouteImport.update({
     id: '/clinical/patients/$id',
@@ -109,7 +123,9 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/voice-analysis': typeof AuthenticatedVoiceAnalysisRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/research-projects/$id': typeof AuthenticatedResearchProjectsIdRoute
   '/clinical/': typeof AuthenticatedClinicalIndexRoute
+  '/research-projects/': typeof AuthenticatedResearchProjectsIndexRoute
   '/clinical/patients/$id': typeof AuthenticatedClinicalPatientsIdRoute
   '/clinical/visits/$id': typeof AuthenticatedClinicalVisitsIdRoute
 }
@@ -124,7 +140,9 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/voice-analysis': typeof AuthenticatedVoiceAnalysisRoute
   '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/research-projects/$id': typeof AuthenticatedResearchProjectsIdRoute
   '/clinical': typeof AuthenticatedClinicalIndexRoute
+  '/research-projects': typeof AuthenticatedResearchProjectsIndexRoute
   '/clinical/patients/$id': typeof AuthenticatedClinicalPatientsIdRoute
   '/clinical/visits/$id': typeof AuthenticatedClinicalVisitsIdRoute
 }
@@ -141,7 +159,9 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/voice-analysis': typeof AuthenticatedVoiceAnalysisRoute
   '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
+  '/_authenticated/research-projects/$id': typeof AuthenticatedResearchProjectsIdRoute
   '/_authenticated/clinical/': typeof AuthenticatedClinicalIndexRoute
+  '/_authenticated/research-projects/': typeof AuthenticatedResearchProjectsIndexRoute
   '/_authenticated/clinical/patients/$id': typeof AuthenticatedClinicalPatientsIdRoute
   '/_authenticated/clinical/visits/$id': typeof AuthenticatedClinicalVisitsIdRoute
 }
@@ -158,7 +178,9 @@ export interface FileRouteTypes {
     | '/reports'
     | '/voice-analysis'
     | '/workspace'
+    | '/research-projects/$id'
     | '/clinical/'
+    | '/research-projects/'
     | '/clinical/patients/$id'
     | '/clinical/visits/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -173,7 +195,9 @@ export interface FileRouteTypes {
     | '/reports'
     | '/voice-analysis'
     | '/workspace'
+    | '/research-projects/$id'
     | '/clinical'
+    | '/research-projects'
     | '/clinical/patients/$id'
     | '/clinical/visits/$id'
   id:
@@ -189,7 +213,9 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/voice-analysis'
     | '/_authenticated/workspace'
+    | '/_authenticated/research-projects/$id'
     | '/_authenticated/clinical/'
+    | '/_authenticated/research-projects/'
     | '/_authenticated/clinical/patients/$id'
     | '/_authenticated/clinical/visits/$id'
   fileRoutesById: FileRoutesById
@@ -289,6 +315,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicalIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/research-projects/': {
+      id: '/_authenticated/research-projects/'
+      path: '/research-projects'
+      fullPath: '/research-projects/'
+      preLoaderRoute: typeof AuthenticatedResearchProjectsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/research-projects/$id': {
+      id: '/_authenticated/research-projects/$id'
+      path: '/research-projects/$id'
+      fullPath: '/research-projects/$id'
+      preLoaderRoute: typeof AuthenticatedResearchProjectsIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/clinical/patients/$id': {
       id: '/_authenticated/clinical/patients/$id'
       path: '/clinical/patients/$id'
@@ -312,7 +352,9 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedVoiceAnalysisRoute: typeof AuthenticatedVoiceAnalysisRoute
   AuthenticatedWorkspaceRoute: typeof AuthenticatedWorkspaceRoute
+  AuthenticatedResearchProjectsIdRoute: typeof AuthenticatedResearchProjectsIdRoute
   AuthenticatedClinicalIndexRoute: typeof AuthenticatedClinicalIndexRoute
+  AuthenticatedResearchProjectsIndexRoute: typeof AuthenticatedResearchProjectsIndexRoute
   AuthenticatedClinicalPatientsIdRoute: typeof AuthenticatedClinicalPatientsIdRoute
   AuthenticatedClinicalVisitsIdRoute: typeof AuthenticatedClinicalVisitsIdRoute
 }
@@ -323,7 +365,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedVoiceAnalysisRoute: AuthenticatedVoiceAnalysisRoute,
   AuthenticatedWorkspaceRoute: AuthenticatedWorkspaceRoute,
+  AuthenticatedResearchProjectsIdRoute: AuthenticatedResearchProjectsIdRoute,
   AuthenticatedClinicalIndexRoute: AuthenticatedClinicalIndexRoute,
+  AuthenticatedResearchProjectsIndexRoute:
+    AuthenticatedResearchProjectsIndexRoute,
   AuthenticatedClinicalPatientsIdRoute: AuthenticatedClinicalPatientsIdRoute,
   AuthenticatedClinicalVisitsIdRoute: AuthenticatedClinicalVisitsIdRoute,
 }

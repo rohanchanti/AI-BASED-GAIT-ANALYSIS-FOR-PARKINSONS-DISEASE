@@ -177,7 +177,7 @@ function Runs({ b }: { b: any }) {
         <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead className="text-left text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="py-2">Participant</th><th>Session</th><th>Trial</th><th>Status</th><th>Usable frames</th><th>Cycles</th><th>Versions</th></tr></thead>
           <tbody>{b.runs.map((r: any) => (
-            <tr key={r.runId} className="border-t border-border/50"><td className="py-2 font-mono">{r.participant_code}</td><td><Link to="/clinical/visits/$id" params={{ id: r.visitId ?? "" }} className="hidden" />{r.visitCode}</td><td>{r.trial ?? 1}</td><td><StatusBadge status={r.status} /></td><td>{r.quality ? `${r.quality.usablePercent}%` : "—"}</td><td>{r.quality?.usableCycles ?? "—"}</td><td className="text-xs text-muted-foreground">{r.versions.model} / {r.versions.features}</td></tr>
+            <tr key={r.runId} className="border-t border-border/50"><td className="py-2 font-mono">{r.participant_code}</td><td>{r.visitCode}</td><td>{r.trial ?? 1}</td><td><StatusBadge status={r.status} /></td><td>{r.quality ? `${r.quality.usablePercent}%` : "—"}</td><td>{r.quality?.usableCycles ?? "—"}</td><td className="text-xs text-muted-foreground">{r.versions.model} / {r.versions.features}</td></tr>
           ))}</tbody>
         </table></div>
       )}
