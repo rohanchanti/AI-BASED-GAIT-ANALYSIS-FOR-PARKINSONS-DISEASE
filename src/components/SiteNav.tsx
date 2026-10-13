@@ -83,6 +83,7 @@ export function SiteNav() {
             >
               {email}
             </Link>
+            </>
           ) : (
             <>
               <Link
