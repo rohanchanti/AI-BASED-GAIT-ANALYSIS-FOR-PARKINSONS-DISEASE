@@ -83,6 +83,7 @@ export interface EngineOutput {
   parameters: ParamValue[];
   counts: { initialContacts: number; toeOffs: number; steps: number; strides: number; rejectedEvents: number };
   notes: string[];
+  stepSeries: { t: number; side: "left" | "right"; stepTime: number }[];
 }
 
 export function computeGaitParameters(input: EngineInput): EngineOutput {
@@ -94,11 +95,13 @@ export function computeGaitParameters(input: EngineInput): EngineOutput {
 
   const stepsL: number[] = [];
   const stepsR: number[] = [];
+  const stepSeries: { t: number; side: "left" | "right"; stepTime: number }[] = [];
   for (let i = 1; i < ic.length; i++) {
     if (ic[i].side === ic[i - 1].side) continue;
     const d = ic[i].timestamp - ic[i - 1].timestamp;
     if (!valid(d)) continue;
     (ic[i].side === "left" ? stepsL : stepsR).push(d);
+    stepSeries.push({ t: ic[i].timestamp, side: ic[i].side, stepTime: +d.toFixed(4) });
   }
   const steps = [...stepsL, ...stepsR];
   const stride = (side: "left" | "right") => {
@@ -169,6 +172,7 @@ export function computeGaitParameters(input: EngineInput): EngineOutput {
     parameters: P,
     counts: { initialContacts: ic.length, toeOffs: to.length, steps: steps.length, strides: strides.length, rejectedEvents: rejected },
     notes,
+    stepSeries,
   };
 }
 
