@@ -71,3 +71,23 @@ export function compareParameters(a: ParamLike[], b: ParamLike[]): ParamDiff[] {
     return { key, a: va, b: vb, diff: +diff.toFixed(4), pct: va !== 0 ? +((100 * diff) / Math.abs(va)).toFixed(1) : null };
   });
 }
+
+/** Documented JSON schema id for stored clinical reports (see AGENTS.md / report content). */
+export const CLINICAL_REPORT_SCHEMA = "neurostride.clinical-report/1";
+
+/** Flat CSV of report parameters. Unavailable values stay empty with their reason. */
+export function clinicalReportCsv(c: any): string {
+  const cols = ["subject_code", "visit_code", "run_id", "protocol", "trial", "parameter_key", "side", "value", "unit", "status", "n", "reason"];
+  const esc = (v: unknown) => { const t = v == null ? "" : String(v); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+  const base = [c.visit?.subjects?.subject_code, c.visit?.visit_code, c.run?.id ?? c.ids?.runId, c.recording?.protocol, c.recording?.trial_number ?? 1];
+  const rows: unknown[][] = [];
+  for (const p of (c.parameters ?? []) as any[]) {
+    const status = p.status === "unavailable" ? "unavailable" : p.status ?? "measured";
+    rows.push([...base, p.key, "both", status === "unavailable" ? null : p.value, p.unit ?? "", status, p.n ?? "", p.reason ?? ""]);
+    if (p.left != null || p.right != null) {
+      rows.push([...base, p.key, "left", p.left, p.unit ?? "", status, "", ""]);
+      rows.push([...base, p.key, "right", p.right, p.unit ?? "", status, "", ""]);
+    }
+  }
+  return [cols.join(","), ...rows.map((r) => r.map(esc).join(","))].join("\n");
+}
