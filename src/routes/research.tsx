@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { GAITPDB_META } from "@/lib/gait-engine/gaitpdb";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDown, BookOpen, FlaskConical, Cpu, Waves } from "lucide-react";
 import { loadDataset, trainModel } from "@/lib/voice-model";
@@ -175,6 +176,41 @@ const PIPELINE_STAGES: { name: string; desc: string; note?: string }[] = [
   { name: "Report", desc: "Results can be organized into a structured analysis report." },
 ];
 
+function ReferenceDataSection() {
+  const m = GAITPDB_META;
+  return (
+    <section className="mt-10">
+      <div className="text-xs uppercase tracking-[0.2em] text-cyan">Reference data & validation framework</div>
+      <h2 className="mt-2 font-display text-2xl font-semibold">PhysioNet gaitpdb (force-sensor reference)</h2>
+      <div className="mt-4 grid gap-4 md:grid-cols-2 text-sm">
+        <div className="glass rounded-2xl p-5 space-y-1">
+          <div><b>Modality:</b> {m.modality}, {m.samplingHz} Hz</div>
+          <div><b>Format:</b> {m.fileFormat}</div>
+          <div><b>Files:</b> {m.fileNaming}</div>
+          <div><b>Annotations:</b> {m.annotations}</div>
+          <div><b>License:</b> {m.license}</div>
+          <div className="text-xs text-muted-foreground">{m.citation} <a className="underline" href={m.url} target="_blank" rel="noreferrer">Source</a></div>
+        </div>
+        <div className="glass rounded-2xl p-5">
+          <div className="font-medium">Comparability</div>
+          <ul className="mt-2 list-disc pl-5 text-xs text-muted-foreground space-y-1">
+            {m.domainShift.map((d) => <li key={d}>{d}</li>)}
+            <li>Only contact-timing features (stride time and its variability) are treated as comparable across modalities; force signals are never used as pose landmarks or to train the webcam model.</li>
+            <li>Splits are made per participant so no person appears in more than one of development, validation or test.</li>
+          </ul>
+        </div>
+      </div>
+      <div className="mt-4 glass rounded-2xl p-5 text-sm">
+        <div className="font-medium">Validation status of the video gait engine</div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Implemented metrics: MAE, RMSE, Bland–Altman bias and limits of agreement, ICC(2,1), test–retest SEM/MDC, and sensitivity, specificity, precision, F1 and confusion matrix with Wilson 95% intervals.
+          The formulas are software-verified on synthetic signals only. No video recordings with independent annotation or instrumented reference (force plate, pressure walkway) have been evaluated yet, so no accuracy or agreement figures are reported.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function TechnicalPipelineSection() {
   return (
     <section className="mt-10">
@@ -239,6 +275,7 @@ function ResearchPage() {
       <TechnicalPipelineSection />
 
       <ValidationDatasetSection />
+      <ReferenceDataSection />
 
       <div className="mt-10 glass rounded-2xl p-6 text-sm text-muted-foreground">
         <strong className="text-foreground">Medical disclaimer.</strong> NeuroStride AI is a
