@@ -304,3 +304,18 @@ export const finalizeVisit = createServerFn({ method: "POST" })
     await audit(supabase, userId, "visit_finalized", "visits", data.visitId, { baseline: data.baseline });
     return { ok: true };
   });
+
+/** Stored per-frame landmarks and a short-lived video URL for playback with overlay. */
+export const getRunMedia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ runId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: run } = await supabase.from("analysis_runs").select("id, recordings(storage_path)").eq("id", data.runId).eq("owner_id", userId).maybeSingle();
+    const path = (run as any)?.recordings?.storage_path;
+    if (!path) throw new Error("Recording not found.");
+    const { data: signed } = await supabase.storage.from("recordings").createSignedUrl(path, 600);
+    const { data: g } = await supabase.from("gait_results").select("landmark_frames").eq("run_id", data.runId).maybeSingle();
+    const frames = ((g?.landmark_frames as any)?.frames ?? []).map((f: any) => ({ t: f.t, lm: f.lm }));
+    return { url: signed?.signedUrl ?? null, frames: frames as { t: number; lm: number[] | null }[] };
+  });
