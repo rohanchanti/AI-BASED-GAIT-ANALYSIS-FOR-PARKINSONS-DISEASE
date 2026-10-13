@@ -83,7 +83,7 @@ export function qualityInputFromPose(pose: PoseAnalysisFull, minConf = 0.5): Qua
     framesWithPose: withPose.length,
     multiPersonFrames: frames.filter((f) => (f.peopleDetected ?? 0) > 1).length,
     poseConfidence: q?.poseConfidence ?? 0,
-    bodyVisibility: q?.bodyVisibility ?? 0,
+    bodyVisibility: q?.bodyVisibilityScore ?? 0,
     usableFrames: frames.filter((f) => f.valid ?? !!f.landmarks).length,
     meanSubjectHeight: heights.length ? heights.reduce((a, b) => a + b, 0) / heights.length : null,
     edgeCutRatio: withPose.length ? edge / withPose.length : null,
