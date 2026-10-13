@@ -216,6 +216,8 @@ export const saveJobResults = createServerFn({ method: "POST" })
         result: z.any().optional(),
         pose: z.object({ metrics: z.any(), quality: z.any(), validation: z.any(), events: z.array(z.any()).max(2000) }).optional(),
         error: z.string().max(1000).optional(),
+        engine: z.any().optional(),
+        frames: z.any().optional(),
       })
       .parse(d),
   )
@@ -249,6 +251,9 @@ export const saveJobResults = createServerFn({ method: "POST" })
         model_score: typeof data.result.probability === "number" ? data.result.probability : null,
         model_confidence: typeof data.result.confidence === "number" ? data.result.confidence : null,
         result_payload: data.result,
+        engine_output: data.engine ?? null,
+        landmark_frames: data.frames ?? null,
+        is_synthetic: false,
       });
       if (ge) throw new Error(ge.message);
     }
@@ -306,7 +311,7 @@ export const getJobResult = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: r, error } = await context.supabase
       .from("gait_results")
-      .select("result_payload, pose_metrics, quality, validation, events")
+      .select("result_payload, pose_metrics, quality, validation, events, engine_output")
       .eq("run_id", data.runId)
       .maybeSingle();
     if (error) throw new Error(error.message);

@@ -18,6 +18,8 @@ import {
 } from "@/lib/jobs.functions";
 import { uploadWithRetry, assessRecording, UploadCancelled } from "@/lib/job-runner";
 import { protocolById, type QualityIssue } from "@/lib/video-config";
+import { computeGaitParameters, EVENT_METHOD } from "@/lib/gait-engine/parameters";
+import { serializeFrames, qualitySummary } from "@/lib/gait-engine/frames";
 
 export interface JobRequest {
   /** Create a new server job (first submission). */
@@ -168,6 +170,12 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
             return;
           }
           persistPoseAnalysis(pose);
+          const engine = {
+            ...computeGaitParameters({ events: pose.events, walkingDistanceM: job?.create?.walkingDistanceM ?? null, durationSec: pose.video.durationSec }),
+            quality: qualitySummary(pose),
+            eventMethod: EVENT_METHOD,
+          };
+          try { sessionStorage.setItem("latestEngine", JSON.stringify(engine)); } catch { /* ignore */ }
           result = { ...result, qualityScore: pose.quality?.overall ?? null };
           warnings.push(...assessment.issues);
           if (runIdRef.current)
@@ -180,6 +188,8 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
                 video,
                 result: JSON.parse(JSON.stringify(result)),
                 pose: posePayload,
+                engine: JSON.parse(JSON.stringify(engine)),
+                frames: serializeFrames(pose),
               },
             });
         } else {

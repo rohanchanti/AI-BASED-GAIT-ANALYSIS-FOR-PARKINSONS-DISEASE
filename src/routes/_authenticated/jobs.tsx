@@ -83,6 +83,8 @@ function JobsPage() {
       const rec = f?.recording ?? {};
       const subj = rec.visits?.subjects ?? {};
       storeResult(r.result_payload as AnalysisResult, job, rec, subj);
+      if (r.engine_output) sessionStorage.setItem("latestEngine", JSON.stringify(r.engine_output));
+      else sessionStorage.removeItem("latestEngine");
       sessionStorage.setItem(
         POSE_SESSION_KEY,
         JSON.stringify({ method: "mediapipe-pose", generatedAt: job.completed_at, video: null, metrics: r.pose_metrics, angles: [], events: r.events ?? [], quality: r.quality, validation: r.validation }),
