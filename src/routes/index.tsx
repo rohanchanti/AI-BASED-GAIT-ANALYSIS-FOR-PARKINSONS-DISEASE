@@ -1,5 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { getVisit } from "@/lib/clinical.functions";
+import { useState , useMemo } from "react";
 import { ArrowRight, Activity, Brain, Cpu, LineChart, Shield, Sparkles, FlaskConical, UploadCloud, FileText, Mic, FileVideo, Gauge, Check, ListChecks, ScanFace } from "lucide-react";
 import heroNebula from "@/assets/hero-nebula.jpg";
 import { UploadZone, type DetectedFile } from "@/components/UploadZone";
@@ -86,6 +89,7 @@ const DESCRIPTION =
   "Quantitative analysis of gait, facial movement, and motor biomarkers from video for research and clinical decision-support applications.";
 
 export const Route = createFileRoute("/")({
+  validateSearch: (s: Record<string, unknown>): { visit?: string } => (typeof s.visit === "string" && /^[0-9a-f-]{36}$/i.test(s.visit) ? { visit: s.visit } : {}),
   head: () => ({
     meta: [
       { title: TITLE },
@@ -109,6 +113,16 @@ function LandingPage() {
   const [stage, setStage] = useState<Stage>("idle");
   const navigate = useNavigate();
 
+  const { visit: visitId } = Route.useSearch();
+  const getVisitFn = useServerFn(getVisit);
+  const visitQ = useQuery({ queryKey: ["visit", visitId], queryFn: () => getVisitFn({ data: { id: visitId! } }), enabled: !!visitId });
+  const linked = visitQ.data as any;
+  const initial = useMemo(() => {
+    const v = linked?.visit;
+    if (!v) return undefined;
+    const s = v.subjects;
+    return { label: v.visit_code, protocol: v.protocol ?? undefined, subject: { subjectName: s.display_name ?? s.subject_code, subjectId: s.subject_code, age: s.age != null ? String(s.age) : "", sex: s.sex ?? "", condition: v.recording_condition ?? "", notes: v.notes ?? "" } };
+  }, [linked]);
   const [job, setJob] = useState<JobRequest | undefined>();
   const [prefill, setPrefill] = useState<Partial<PatientInfo> | undefined>();
 
@@ -137,6 +151,7 @@ function LandingPage() {
           protocol: proto.id,
           create: {
             sessionKey: crypto.randomUUID(),
+            ...(visitId && linked ? { visitId } : {}),
             subject: { name: s.subjectName, subjectId: s.subjectId, age: s.age, sex: s.sex, recordingCondition: s.condition, notes: s.notes },
             protocol: proto.id,
             trialNumber: meta.trialNumber,
@@ -295,7 +310,12 @@ function LandingPage() {
       {/* UPLOAD */}
       <section id="analyze" className="mx-auto max-w-5xl px-4 sm:px-6 -mt-4 pb-24 scroll-mt-24">
         <RecordingGuidelines />
-        <GaitVideoInput onAnalyze={onDetected} busy={stage === "processing"} />
+        {visitId && (
+          <div className="mb-4 rounded-xl border border-primary/40 bg-primary/5 p-3 text-sm">
+            {visitQ.isLoading ? "Loading linked visit…" : visitQ.error ? <span className="text-destructive">Linked visit could not be loaded: {(visitQ.error as Error).message}</span> : <>Recording for visit <b>{initial?.label}</b> — subject details are pre-filled from the visit. <Link to="/clinical/visits/$id" params={{ id: visitId }} className="text-cyan hover:underline">Back to visit</Link></>}
+          </div>
+        )}
+        <GaitVideoInput onAnalyze={onDetected} busy={stage === "processing"} initial={initial} />
         <UploadZone onDetected={(d) => onDetected(d)} />
       </section>
 

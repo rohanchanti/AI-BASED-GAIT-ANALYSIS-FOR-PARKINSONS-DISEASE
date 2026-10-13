@@ -188,7 +188,7 @@ export const importDataset = createServerFn({ method: "POST" })
     if (dup) return { ok: false as const, validation: { ...v, ok: false, errors: ["This exact file has already been imported."] } };
     const { data: row, error } = await supabase
       .from("research_datasets")
-      .insert({ owner_id: userId, project_id: data.projectId, name: data.name, source: data.source, version: data.version, checksum: data.checksum, row_count: v.rowCount, columns: v.columns, validation: v, rows: data.rows })
+      .insert({ owner_id: userId, project_id: data.projectId, name: data.name, source: data.source, version: data.version, checksum: data.checksum, row_count: v.rowCount, columns: v.columns, validation: v as any, rows: data.rows })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
@@ -260,7 +260,7 @@ export const getProject = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await requireResearch(context.supabase, context.userId);
-    return json(await loadBundle(context.supabase, context.userId, data.id));
+    return json(await loadBundle(context.supabase, context.userId, data.id)) as any;
   });
 
 /**
@@ -302,7 +302,7 @@ export const runExperiment = createServerFn({ method: "POST" })
     const status = perParam.some((p) => p.agreement.status === "ok") ? "evaluated" : "insufficient_data";
     const { data: row, error } = await supabase
       .from("research_experiments")
-      .insert({ owner_id: userId, project_id: data.projectId, name: data.name, status, preprocessing: data.preprocessing, features: data.features, notes: data.notes ?? null, versions: { ...ANALYSIS_VERSIONS, engine: ENGINE_VERSION }, results })
+      .insert({ owner_id: userId, project_id: data.projectId, name: data.name, status, preprocessing: data.preprocessing, features: data.features, notes: data.notes ?? null, versions: { ...ANALYSIS_VERSIONS, engine: ENGINE_VERSION }, results: results as any })
       .select("id")
       .single();
     if (error) throw new Error(error.message);

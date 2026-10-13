@@ -75,12 +75,15 @@ export function SiteNav() {
 
         <div className="hidden lg:flex items-center gap-2">
           {email ? (
+            <>
+            <Link to="/workspace" className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground">Workspace</Link>
             <Link
               to="/dashboard"
               className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
             >
               {email}
             </Link>
+            </>
           ) : (
             <>
               <Link
