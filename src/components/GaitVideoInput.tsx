@@ -39,6 +39,8 @@ export interface RecordingMeta {
 }
 
 interface Props {
+  /** Pre-filled subject/protocol from an existing visit; fields stay editable but are shown as linked. */
+  initial?: { subject: SubjectInfo; protocol?: ProtocolId; label?: string };
   onAnalyze: (d: DetectedFile, subject: SubjectInfo, meta: RecordingMeta) => void;
   busy?: boolean;
 }
@@ -65,7 +67,7 @@ const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${Str
 const inputCls =
   "mt-1 w-full rounded-lg border border-border bg-background/40 px-3 py-2 text-sm outline-none focus:border-primary";
 
-export function GaitVideoInput({ onAnalyze, busy }: Props) {
+export function GaitVideoInput({ onAnalyze, busy, initial }: Props) {
   const [protocol, setProtocol] = useState<ProtocolId>("straight");
   const [trial, setTrial] = useState("1");
   const [distance, setDistance] = useState("");
@@ -98,6 +100,11 @@ export function GaitVideoInput({ onAnalyze, busy }: Props) {
       if (d?.deviations) setDeviations(d.deviations);
     } catch { /* ignore */ }
     draftLoaded.current = true;
+  }, []);
+  useEffect(() => {
+    if (!initial) return;
+    setSubjectState({ ...initial.subject });
+    if (initial.protocol) setProtocol(initial.protocol);
   }, []);
   useEffect(() => {
     if (!draftLoaded.current) return;
