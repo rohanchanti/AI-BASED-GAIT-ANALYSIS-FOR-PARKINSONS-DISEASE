@@ -10,6 +10,7 @@ const links = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/voice-analysis", label: "Voice AI" },
   { to: "/reports", label: "Reports" },
+  { to: "/jobs", label: "Jobs" },
   { to: "/research", label: "Research" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
