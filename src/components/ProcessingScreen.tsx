@@ -13,13 +13,15 @@ import {
   verifyUpload,
   updateJobStatus,
   saveJobResults,
+  type CreateJobInput,
+  type JobStatusUpdate,
 } from "@/lib/jobs.functions";
 import { uploadWithRetry, assessRecording, UploadCancelled } from "@/lib/job-runner";
 import { protocolById, type QualityIssue } from "@/lib/video-config";
 
 export interface JobRequest {
   /** Create a new server job (first submission). */
-  create?: Parameters<typeof createAnalysisJob>[0]["data"];
+  create?: CreateJobInput;
   /** Re-process an existing job whose file is already stored. */
   resumeRunId?: string;
   protocol: string;
@@ -68,7 +70,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
     const signal = controller.signal;
     const protocol = protocolById(job?.protocol ?? "straight");
 
-    const status = async (s: Parameters<typeof updateJobStatus>[0]["data"]) => {
+    const status = async (s: JobStatusUpdate) => {
       if (!runIdRef.current) return;
       try {
         await updateJobStatus({ data: { ...s, runId: runIdRef.current } });

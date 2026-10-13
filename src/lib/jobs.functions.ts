@@ -188,7 +188,7 @@ export const updateJobStatus = createServerFn({ method: "POST" })
     if (run.status !== data.status && !canTransition(run.status, data.status as JobStatus))
       return { ok: false, status: run.status };
     const now = new Date().toISOString();
-    const patch: Record<string, unknown> = { status: data.status, heartbeat_at: now, updated_at: now };
+    const patch: import("@/integrations/supabase/types").TablesUpdate<"analysis_runs"> = { status: data.status, heartbeat_at: now, updated_at: now };
     if (data.stage) patch.stage = data.stage;
     if (data.progress != null) patch.progress = data.progress;
     if (data.error) patch.error_message = data.error;
@@ -312,3 +312,6 @@ export const getJobResult = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return r ? (JSON.parse(JSON.stringify(r)) as Record<string, any>) : null;
   });
+
+export type CreateJobInput = z.infer<typeof createInput>;
+export type JobStatusUpdate = { status: z.infer<typeof statusEnum>; stage?: string; progress?: number; error?: string; retry?: boolean };
