@@ -241,8 +241,11 @@ export type Database = {
       gait_results: {
         Row: {
           created_at: string
+          engine_output: Json | null
           events: Json | null
           id: string
+          is_synthetic: boolean
+          landmark_frames: Json | null
           landmark_summary: Json | null
           model_confidence: number | null
           model_score: number | null
@@ -256,8 +259,11 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          engine_output?: Json | null
           events?: Json | null
           id?: string
+          is_synthetic?: boolean
+          landmark_frames?: Json | null
           landmark_summary?: Json | null
           model_confidence?: number | null
           model_score?: number | null
@@ -271,8 +277,11 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          engine_output?: Json | null
           events?: Json | null
           id?: string
+          is_synthetic?: boolean
+          landmark_frames?: Json | null
           landmark_summary?: Json | null
           model_confidence?: number | null
           model_score?: number | null
