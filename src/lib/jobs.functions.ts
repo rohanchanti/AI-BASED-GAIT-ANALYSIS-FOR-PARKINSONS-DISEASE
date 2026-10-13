@@ -24,6 +24,8 @@ const createInput = z.object({
   file: z.object({ name: z.string().max(200), type: z.string().max(80), size: z.number().int().min(1) }),
   versions: z.record(z.string(), z.string().nullable()).optional(),
   analysisCode: z.string().max(40).optional(),
+  /** Attach the recording to an existing visit (clinical/research workspaces) instead of creating one. */
+  visitId: z.string().uuid().optional(),
 });
 
 /** Idempotent: the same sessionKey returns the existing job instead of creating a duplicate. */
@@ -49,6 +51,13 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
     }
 
     const s = data.subject;
+    let visit: { id: string };
+    if (data.visitId) {
+      const { data: v, error: vErr } = await supabase.from("visits").select("id, status").eq("id", data.visitId).eq("owner_id", userId).maybeSingle();
+      if (vErr || !v) throw new Error("Visit not found or not accessible.");
+      if (v.status === "closed") throw new Error("This visit is closed; start a new visit to record again.");
+      visit = { id: v.id };
+    } else {
     const { data: subj, error: se } = await supabase
       .from("subjects")
       .upsert(
@@ -58,12 +67,14 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (se) throw new Error(se.message);
-    const { data: visit, error: ve } = await supabase
+    const { data: nv, error: ve } = await supabase
       .from("visits")
       .insert({ owner_id: userId, subject_id: subj.id, recording_condition: s.recordingCondition.trim(), notes: s.notes.trim() })
       .select("id")
       .single();
     if (ve) throw new Error(ve.message);
+    visit = nv;
+    }
     const proto = PROTOCOLS.find((p) => p.id === data.protocol)!;
     const ext = mime === "video/mp4" ? "mp4" : mime === "video/quicktime" ? "mov" : "webm";
     const storagePath = `${userId}/${visit.id}/${data.sessionKey}.${ext}`;
