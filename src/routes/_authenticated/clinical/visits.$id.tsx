@@ -5,7 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Video, FileText } from "lucide-react";
 import { getVisit, addReview, addProtocolTiming, createClinicalReport, getClinicalReport, finalizeVisit, getRunMedia } from "@/lib/clinical.functions";
-import { canGenerateReport, timedProtocolResult, REVIEW_DECISIONS } from "@/lib/clinical-rules";
+import { clinicalReportCsv, canGenerateReport, timedProtocolResult, REVIEW_DECISIONS } from "@/lib/clinical-rules";
 import { protocolById } from "@/lib/video-config";
 import { clinicalReportPdf } from "@/lib/workspace-pdf";
 import { PageShell, Card, Loading, ErrorBox, Empty, Notice, StatusBadge, ParameterTable, VideoWithPose, inputCls, btnPrimary, btnGhost, useConfirm } from "@/components/workspace/shared";
@@ -83,9 +83,18 @@ function RunCard({ run, data, visitId, closed }: { run: any; data: any; visitId:
       refresh();
     } catch (x) { toast.error((x as Error).message); } finally { setBusy(false); }
   }
-  async function download(id: string) {
-    const r = await getRep({ data: { id } });
-    clinicalReportPdf((r as any).content).save(`clinical-report-${id.slice(0, 8)}.pdf`);
+  async function download(id: string, format: "pdf" | "csv" | "json") {
+    try {
+      const r = (await getRep({ data: { id } })) as any;
+      const name = `clinical-report-${r.content?.visit?.visit_code ?? id.slice(0, 8)}`;
+      if (format === "pdf") return clinicalReportPdf(r.content).save(`${name}.pdf`);
+      const text = format === "csv" ? clinicalReportCsv(r.content) : JSON.stringify(r.content, null, 2);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type: format === "csv" ? "text/csv" : "application/json" }));
+      a.download = `${name}.${format}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (x) { toast.error(`Export failed: ${(x as Error).message}`); }
   }
   return (
     <Card title={`Trial ${run.rec.trial_number ?? 1} · ${protocolById(run.rec.protocol ?? "straight").label}`} right={<StatusBadge status={run.status} />}>
@@ -117,7 +126,7 @@ function RunCard({ run, data, visitId, closed }: { run: any; data: any; visitId:
           {!reportable && <p className="mt-1 text-xs text-muted-foreground">Report blocked: this trial is “{run.status}”. Only completed analyses can be reported.</p>}
           {reportable && !reviews.length && <p className="mt-1 text-xs text-warning">No clinician review yet — the report will show the review as pending.</p>}
           <button className={btnPrimary + " mt-2"} onClick={generate} disabled={!reportable || busy}><FileText className="h-4 w-4" /> {busy ? "Generating…" : "Generate report (PDF)"}</button>
-          <ul className="mt-3 space-y-1 text-xs">{reports.map((r: any) => <li key={r.id}><button className="text-cyan hover:underline" onClick={() => download(r.id)}>Report {r.created_at.slice(0, 16).replace("T", " ")}</button></li>)}</ul>
+          <ul className="mt-3 space-y-1 text-xs">{reports.map((r: any) => <li key={r.id} className="flex flex-wrap gap-2"><span>Report {r.created_at.slice(0, 16).replace("T", " ")}</span>{(["pdf", "csv", "json"] as const).map((f) => <button key={f} className="text-cyan hover:underline uppercase" onClick={() => download(r.id, f)}>{f}</button>)}</li>)}</ul>
         </div>
       </div>
     </Card>

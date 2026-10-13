@@ -1,3 +1,4 @@
+import { CLINICAL_REPORT_SCHEMA } from "@/lib/clinical-rules";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -142,7 +143,7 @@ export const createVisit = createServerFn({ method: "POST" })
     if (!subj) throw new Error("Patient not found or not accessible.");
     const { data: consent, error: ce } = await supabase
       .from("consents")
-      .insert({ owner_id: userId, subject_id: data.subjectId, consent_type: "video_recording_clinical", granted: true, document_version: data.consent.documentVersion, notes: `Recorded by ${data.consent.recordedBy}` })
+      .insert({ owner_id: userId, subject_id: data.subjectId, consent_type: "clinical_care", granted: true, document_version: data.consent.documentVersion, notes: `Recorded by ${data.consent.recordedBy}` })
       .select("id")
       .single();
     if (ce) throw new Error(ce.message);
@@ -262,6 +263,8 @@ export const createClinicalReport = createServerFn({ method: "POST" })
     const t = timings?.[0];
     const timed = timedProtocolResult({ protocol: rec.protocol, startSec: t ? Number(t.start_sec) : null, endSec: t ? Number(t.end_sec) : null, distanceM: t?.distance_m != null ? Number(t.distance_m) : null, videoDurationSec: rec.duration_sec });
     const content = json({
+      schema: CLINICAL_REPORT_SCHEMA,
+      ids: { visitId: data.visitId, runId: data.runId, recordingId: rec.id },
       generatedAt: new Date().toISOString(),
       visit,
       recording: rec,
@@ -285,6 +288,7 @@ export const getClinicalReport = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: r, error } = await context.supabase.from("clinical_reports").select("id, content, created_at").eq("id", data.id).maybeSingle();
     if (error || !r) throw new Error("Report not found.");
+    await context.supabase.from("export_log").insert({ user_id: context.userId, run_id: (r.content as any)?.ids?.runId ?? null, format: "clinical-report", deidentified: false });
     return json(r);
   });
 

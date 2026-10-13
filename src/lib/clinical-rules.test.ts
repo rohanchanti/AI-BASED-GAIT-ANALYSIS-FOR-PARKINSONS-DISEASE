@@ -32,3 +32,13 @@ describe("research datasets", () => {
     expect(validateDataset([{ participant_code: "P1", cadence: "110" }]).ok).toBe(true);
   });
 });
+
+import { clinicalReportCsv } from "./clinical-rules";
+describe("clinical CSV export", () => {
+  it("keeps unavailable values empty with reason and links run/visit", () => {
+    const csv = clinicalReportCsv({ visit: { visit_code: "V-1", subjects: { subject_code: "S1" } }, run: { id: "r1" }, recording: { protocol: "straight", trial_number: 2 }, parameters: [{ key: "cadence", value: 110, unit: "steps/min", status: "measured", n: 12 }, { key: "speed", value: null, unit: "m/s", status: "unavailable", reason: "no calibration" }] });
+    const lines = csv.split("\n");
+    expect(lines[1]).toBe("S1,V-1,r1,straight,2,cadence,both,110,steps/min,measured,12,");
+    expect(lines[2]).toBe("S1,V-1,r1,straight,2,speed,both,,m/s,unavailable,,no calibration");
+  });
+});
