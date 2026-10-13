@@ -1,3 +1,4 @@
+import { ANALYSIS_VERSIONS } from "@/lib/analysis-version";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -145,6 +146,26 @@ function DashboardPage() {
           parameters: stored.result.parameters,
           media_name: stored.media_name,
           summary: stored.result.summary as unknown as Record<string, unknown>,
+          subject_code:
+            stored.patient_id && /^[A-Za-z0-9._-]{1,64}$/.test(stored.patient_id.trim())
+              ? stored.patient_id.trim()
+              : undefined,
+          recording_condition: (stored as { recording_condition?: string }).recording_condition || undefined,
+          notes: (stored as { notes?: string }).notes || undefined,
+          analysis_code: stored.analysis_id,
+          analysis_timestamp: stored.analysis_timestamp,
+          versions: ANALYSIS_VERSIONS as unknown as Record<string, string | null>,
+          pose: pose
+            ? JSON.parse(
+                JSON.stringify({
+                  metrics: pose.metrics,
+                  quality: pose.quality,
+                  validation: pose.validation,
+                  events: pose.events?.slice(0, 2000),
+                  video: pose.video,
+                }),
+              )
+            : undefined,
         },
       });
       setSavedId(id);
