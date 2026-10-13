@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { PARAMETER_DEFINITIONS, type EngineOutput, type ParamStatus } from "@/lib/gait-engine/parameters";
 
@@ -54,8 +54,8 @@ export function TraceableParameters() {
             {e.parameters.map((p) => {
               const d = defs.get(p.key);
               return (
-                <>
-                  <tr key={p.key} className="border-t border-border/40 align-top">
+                <Fragment key={p.key}>
+                  <tr className="border-t border-border/40 align-top">
                     <td className="py-2 pr-3">
                       <button type="button" className="text-left hover:text-primary" onClick={() => setOpen(open === p.key ? null : p.key)} aria-expanded={open === p.key}>
                         {d?.name ?? p.key}
@@ -67,7 +67,7 @@ export function TraceableParameters() {
                     <td className="text-xs text-muted-foreground">{p.reason ?? d?.validation}</td>
                   </tr>
                   {open === p.key && d && (
-                    <tr key={`${p.key}-d`}>
+                    <tr>
                       <td colSpan={5} className="pb-3 text-xs text-muted-foreground">
                         <div><b>Definition:</b> {d.definition}</div>
                         <div><b>Formula:</b> {d.formula}</div>
@@ -76,7 +76,7 @@ export function TraceableParameters() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
