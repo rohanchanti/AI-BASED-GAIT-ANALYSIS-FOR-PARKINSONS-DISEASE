@@ -19,6 +19,8 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated/jobs'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedVoiceAnalysisRouteImport } from './routes/_authenticated/voice-analysis'
+import { Route as AuthenticatedWorkspaceRouteImport } from './routes/_authenticated/workspace'
+import { Route as AuthenticatedClinicalIndexRouteImport } from './routes/_authenticated/clinical/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +72,17 @@ const AuthenticatedVoiceAnalysisRoute =
     path: '/voice-analysis',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedWorkspaceRoute = AuthenticatedWorkspaceRouteImport.update({
+  id: '/workspace',
+  path: '/workspace',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedClinicalIndexRoute =
+  AuthenticatedClinicalIndexRouteImport.update({
+    id: '/clinical/',
+    path: '/clinical/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -81,6 +94,8 @@ export interface FileRoutesByFullPath {
   '/jobs': typeof AuthenticatedJobsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/voice-analysis': typeof AuthenticatedVoiceAnalysisRoute
+  '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/clinical/': typeof AuthenticatedClinicalIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -92,6 +107,8 @@ export interface FileRoutesByTo {
   '/jobs': typeof AuthenticatedJobsRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/voice-analysis': typeof AuthenticatedVoiceAnalysisRoute
+  '/workspace': typeof AuthenticatedWorkspaceRoute
+  '/clinical': typeof AuthenticatedClinicalIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -105,6 +122,8 @@ export interface FileRoutesById {
   '/_authenticated/jobs': typeof AuthenticatedJobsRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/voice-analysis': typeof AuthenticatedVoiceAnalysisRoute
+  '/_authenticated/workspace': typeof AuthenticatedWorkspaceRoute
+  '/_authenticated/clinical/': typeof AuthenticatedClinicalIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,6 +137,8 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/reports'
     | '/voice-analysis'
+    | '/workspace'
+    | '/clinical/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -129,6 +150,8 @@ export interface FileRouteTypes {
     | '/jobs'
     | '/reports'
     | '/voice-analysis'
+    | '/workspace'
+    | '/clinical'
   id:
     | '__root__'
     | '/'
@@ -141,6 +164,8 @@ export interface FileRouteTypes {
     | '/_authenticated/jobs'
     | '/_authenticated/reports'
     | '/_authenticated/voice-analysis'
+    | '/_authenticated/workspace'
+    | '/_authenticated/clinical/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -224,6 +249,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVoiceAnalysisRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/workspace': {
+      id: '/_authenticated/workspace'
+      path: '/workspace'
+      fullPath: '/workspace'
+      preLoaderRoute: typeof AuthenticatedWorkspaceRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/clinical/': {
+      id: '/_authenticated/clinical/'
+      path: '/clinical'
+      fullPath: '/clinical/'
+      preLoaderRoute: typeof AuthenticatedClinicalIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
@@ -232,6 +271,8 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedJobsRoute: typeof AuthenticatedJobsRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedVoiceAnalysisRoute: typeof AuthenticatedVoiceAnalysisRoute
+  AuthenticatedWorkspaceRoute: typeof AuthenticatedWorkspaceRoute
+  AuthenticatedClinicalIndexRoute: typeof AuthenticatedClinicalIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -239,6 +280,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedJobsRoute: AuthenticatedJobsRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedVoiceAnalysisRoute: AuthenticatedVoiceAnalysisRoute,
+  AuthenticatedWorkspaceRoute: AuthenticatedWorkspaceRoute,
+  AuthenticatedClinicalIndexRoute: AuthenticatedClinicalIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
