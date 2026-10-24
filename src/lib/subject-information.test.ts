@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { subjectInformationSchema, isDuplicateParticipantError } from "./subject-information";
+import { subjectInformationSchema, isDuplicateParticipantError, acquisitionConsentSchema, ACQUISITION_CONSENT_VERSION } from "./subject-information";
 
 const valid = { subjectName: "Test Participant", subjectId: "TEST-001", age: "64", sex: "Female", condition: "Corridor", notes: "" };
 
 describe("acquisition subject information", () => {
+  it("requires affirmative versioned consent", () => {
+    expect(acquisitionConsentSchema.safeParse({ granted: false, version: ACQUISITION_CONSENT_VERSION }).success).toBe(false);
+    expect(acquisitionConsentSchema.safeParse({ granted: true, version: "outdated" }).success).toBe(false);
+    expect(acquisitionConsentSchema.safeParse({ granted: true, version: ACQUISITION_CONSENT_VERSION }).success).toBe(true);
+  });
   it("accepts optional empty notes", () => expect(subjectInformationSchema.safeParse(valid).success).toBe(true));
   it("requires participant ID", () => expect(subjectInformationSchema.safeParse({ ...valid, subjectId: " " }).success).toBe(false));
   it("requires age", () => expect(subjectInformationSchema.safeParse({ ...valid, age: "" }).success).toBe(false));
