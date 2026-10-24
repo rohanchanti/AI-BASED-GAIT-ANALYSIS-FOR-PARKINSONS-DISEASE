@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { subjectInformationSchema, ACQUISITION_CONSENT_TEXT, ACQUISITION_CONSENT_VERSION } from "@/lib/subject-information";
 import { saveSubjectInformation } from "@/lib/subject-information.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound, Pause, ClipboardList } from "lucide-react";
 import { ACCEPT_ATTR, checkVideoFile, PROTOCOLS, protocolById, VIDEO_LIMITS, type ProtocolId } from "@/lib/video-config";
 import type { DetectedFile } from "@/components/UploadZone";
@@ -117,6 +118,35 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
       return copy;
     });
     setSubjectState(next);
+  };
+
+  // existing-subject picker (owner-scoped by row security)
+  type SubjectRow = { id: string; subject_code: string; display_name: string | null; age: number | null; sex: string | null };
+  const [search, setSearch] = useState("");
+  const [matches, setMatches] = useState<SubjectRow[]>([]);
+  const [selected, setSelected] = useState<SubjectRow | null>(null);
+  useEffect(() => {
+    const q = search.trim();
+    if (!q || selected) { setMatches([]); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      const safe = q.replace(/[%_,()]/g, "");
+      const { data } = await supabase.from("subjects").select("id, subject_code, display_name, age, sex")
+        .or(`subject_code.ilike.%${safe}%,display_name.ilike.%${safe}%`).order("subject_code").limit(10);
+      if (!cancelled) setMatches((data ?? []) as SubjectRow[]);
+    }, 250);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [search, selected]);
+  const pickSubject = (m: SubjectRow) => {
+    setSelected(m);
+    setSearch("");
+    savedSubjectRef.current = null;
+    setSubject({ ...subject, subjectName: m.display_name ?? "", subjectId: m.subject_code, age: m.age != null ? String(m.age) : "", sex: m.sex ?? "" });
+  };
+  const clearSelected = () => {
+    setSelected(null);
+    savedSubjectRef.current = null;
+    setSubject({ ...subject, subjectName: "", subjectId: "", age: "", sex: "" });
   };
 
   // live state
@@ -368,7 +398,7 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
       else {
         const saved = await saveSubject({ data: {
           subject: parsed.data, visitId,
-          subjectRecordId: previous?.subject === fingerprint ? previous.id : undefined,
+          subjectRecordId: selected && !visitId ? selected.id : previous?.subject === fingerprint ? previous.id : undefined,
           consent: { granted: true, version: ACQUISITION_CONSENT_VERSION },
         } });
         if (!saved.success) {
@@ -611,9 +641,34 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
             <legend className="flex items-center gap-2 px-1 text-sm font-medium">
               <UserRound className="h-4 w-4 text-cyan" /> Subject Information <span className="text-destructive">*</span>
             </legend>
+            {!visitId && (
+              <div className="mb-3 relative">
+                {selected ? (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+                    <span>Existing subject selected: <strong>{selected.subject_code}</strong>{selected.display_name ? ` — ${selected.display_name}` : ""}. A new visit will be created for this subject.</span>
+                    <button type="button" className="text-xs underline text-muted-foreground hover:text-foreground" onClick={clearSelected}>Use a new subject instead</button>
+                  </div>
+                ) : (
+                  <label className="block text-xs text-muted-foreground">Find an existing subject (optional)
+                    <input type="search" className={inputCls} value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by participant ID or name" aria-label="Find an existing subject" />
+                  </label>
+                )}
+                {!selected && search.trim().length > 0 && (
+                  <ul role="listbox" className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-border bg-popover text-sm shadow-lg">
+                    {matches.length === 0 ? <li className="px-3 py-2 text-muted-foreground">No matching subjects.</li> : matches.map((m) => (
+                      <li key={m.id}>
+                        <button type="button" role="option" aria-selected={false} className="w-full px-3 py-2 text-left hover:bg-accent" onClick={() => pickSubject(m)}>
+                          <span className="font-medium">{m.subject_code}</span>{m.display_name ? ` — ${m.display_name}` : ""}<span className="text-muted-foreground">{m.age != null ? ` · ${m.age} y` : ""}{m.sex ? ` · ${m.sex}` : ""}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {field("subjectName", "Subject Name", "", <input type="text" className={inputCls} value={subject.subjectName} onChange={(e) => setSubject({ ...subject, subjectName: e.target.value })} placeholder="e.g. John Doe" maxLength={100} />)}
-              {field("subjectId", "Participant ID", "", <input type="text" className={inputCls} value={subject.subjectId} onChange={(e) => setSubject({ ...subject, subjectId: e.target.value })} placeholder="e.g. S-014" maxLength={50} />)}
+              {field("subjectName", "Subject Name", "", <input type="text" className={inputCls} value={subject.subjectName} readOnly={!!selected} onChange={(e) => setSubject({ ...subject, subjectName: e.target.value })} placeholder="e.g. John Doe" maxLength={100} />)}
+              {field("subjectId", "Participant ID", "", <input type="text" className={inputCls} value={subject.subjectId} readOnly={!!selected} onChange={(e) => setSubject({ ...subject, subjectId: e.target.value })} placeholder="e.g. S-014" maxLength={50} />)}
               {field("age", "Age", "", <input type="text" inputMode="numeric" className={inputCls} value={subject.age} onChange={(e) => setSubject({ ...subject, age: e.target.value.replace(/\D/g, "").slice(0, 3) })} placeholder="18–110" />)}
               {field("sex", "Sex", "sm:col-span-3", (
                 <select className={inputCls} value={subject.sex} onChange={(e) => setSubject({ ...subject, sex: e.target.value })}>
