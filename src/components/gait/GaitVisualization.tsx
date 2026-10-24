@@ -13,12 +13,12 @@ const RIGHT_COLOR = "#C084FC";
 
 /** Canonical stance/swing sub-phases of one gait cycle (Perry & Burnfield). */
 const PHASES = [
-  { name: "Heel Strike", span: "0%", phase: "Stance", note: "Initial contact — foot meets the ground" },
-  { name: "Loading", span: "0–10%", phase: "Stance", note: "Weight acceptance, shock absorption" },
-  { name: "Mid Stance", span: "10–30%", phase: "Stance", note: "Single-limb support over the foot" },
-  { name: "Toe Off", span: "50–60%", phase: "Stance", note: "Terminal stance, push-off" },
-  { name: "Swing", span: "60–100%", phase: "Swing", note: "Limb advances forward, no ground contact" },
-  { name: "Heel Strike", span: "100%", phase: "Stance", note: "Cycle repeats on the same limb" },
+  { name: "Heel Strike", span: "Not available", phase: "Stance", note: "Initial contact — foot meets the ground" },
+  { name: "Loading", span: "Not available", phase: "Stance", note: "Weight acceptance, shock absorption" },
+  { name: "Mid Stance", span: "Not available", phase: "Stance", note: "Single-limb support over the foot" },
+  { name: "Toe Off", span: "Not available", phase: "Stance", note: "Terminal stance, push-off" },
+  { name: "Swing", span: "Not available", phase: "Swing", note: "Limb advances forward, no ground contact" },
+  { name: "Heel Strike", span: "Not available", phase: "Stance", note: "Cycle repeats on the same limb" },
 ] as const;
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -49,19 +49,6 @@ function MetricCard({
     </div>
   );
 }
-
-function DemoBadge() {
-  return (
-    <span className="ml-2 rounded-md border border-warning/50 bg-warning/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-warning align-middle">
-      Demo / example data
-    </span>
-  );
-}
-
-/** Textbook sagittal knee-angle template over one normalized gait cycle (example only). */
-const DEMO_CYCLE = [
-  5, 10, 17, 20, 18, 14, 10, 8, 7, 8, 12, 25, 42, 55, 62, 60, 48, 30, 15, 8, 5,
-].map((knee, i) => ({ pct: i * 5, Left: knee, Right: knee }));
 
 export function GaitVisualization({
   result,
@@ -105,8 +92,7 @@ export function GaitVisualization({
     return filled >= bins * 0.6 ? rows : null;
   }, [pose]);
 
-  const isDemoCurve = !cycleCurve;
-  const curveData = cycleCurve ?? DEMO_CYCLE;
+  const curveData = cycleCurve ?? [];
 
   /* ---- Left vs right limb comparison (pose-derived where available) ---- */
   const limbData = useMemo(() => {
@@ -132,10 +118,10 @@ export function GaitVisualization({
   const cad = val("cadence");
   const stride = val("stride_length");
   const sym = val("walking_sym");
-  if (speed != null) observed.push(speed < 1.0 ? "Reduced walking speed (bradykinetic pattern)" : "Walking speed within the expected adult range");
-  if (stride != null) observed.push(stride < 1.2 ? "Shortened stride length (shuffling tendency)" : "Stride length within the expected range");
-  if (cad != null) observed.push(cad < 100 ? "Reduced cadence" : cad > 125 ? "Elevated cadence (possible festination)" : "Cadence within the expected range");
-  if (sym != null) observed.push(sym < 90 ? "Asymmetric left-right gait pattern" : "Broadly symmetric left-right pattern");
+  if (speed != null && status("walking_speed") !== "unavailable") observed.push(speed < 1.0 ? "Reduced walking speed (bradykinetic pattern)" : "Walking speed within the expected adult range");
+  if (stride != null && status("stride_length") !== "unavailable") observed.push(stride < 1.2 ? "Shortened stride length (shuffling tendency)" : "Stride length within the expected range");
+  if (cad != null && status("cadence") !== "unavailable") observed.push(cad < 100 ? "Reduced cadence" : cad > 125 ? "Elevated cadence (possible festination)" : "Cadence within the expected range");
+  if (sym != null && status("walking_sym") !== "unavailable") observed.push(sym < 90 ? "Asymmetric left-right gait pattern" : "Broadly symmetric left-right pattern");
   if (!observed.length) observed.push("Not available — no measured gait parameters for this session.");
 
   const keyMeasures = ["walking_speed", "cadence", "stride_length", "step_time", "stance_phase", "walking_sym"]
@@ -210,15 +196,15 @@ export function GaitVisualization({
       {/* 3. Cycle movement line chart */}
       <SectionTitle>
         Knee angle across the gait cycle
-        {isDemoCurve && <DemoBadge />}
+        
       </SectionTitle>
       <p className="mb-2 text-xs text-muted-foreground">
-        {isDemoCurve
-          ? "This session did not yield enough complete gait cycles, so a textbook example curve is shown for illustration only. It is not this subject's measurement."
+        {!cycleCurve
+          ? "Not available"
           : "Measured knee flexion averaged over every detected gait cycle for this subject, normalized to 0–100% of the cycle."}
       </p>
       <div className="h-72 w-full" role="img" aria-label="Knee angle across one normalized gait cycle, left and right">
-        <ResponsiveContainer width="100%" height="100%">
+        {cycleCurve ? <ResponsiveContainer width="100%" height="100%">
           <LineChart data={curveData} margin={{ top: 8, right: 12, bottom: 4, left: 0 }}>
             <CartesianGrid stroke="hsl(230 25% 22%)" strokeDasharray="3 3" />
             <XAxis dataKey="pct" {...AXIS} unit="%" />
@@ -232,7 +218,7 @@ export function GaitVisualization({
             <Line type="monotone" dataKey="Left" name="Left knee" stroke={LEFT_COLOR} dot={false} strokeWidth={2} connectNulls />
             <Line type="monotone" dataKey="Right" name="Right knee" stroke={RIGHT_COLOR} dot={false} strokeWidth={2} strokeDasharray="5 3" connectNulls />
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer> : <div className="grid h-full place-items-center text-sm text-muted-foreground">Not available</div>}
       </div>
 
       {/* 4. Left vs right limb */}
@@ -287,7 +273,7 @@ export function GaitVisualization({
                 <div key={row.key} className="flex items-baseline justify-between gap-3">
                   <dt className="text-muted-foreground">{row.name}</dt>
                   <dd className="font-display">
-                    {row.patient.toFixed(2)} {row.unit}
+                    {fmt(row.patient)} {row.patient != null ? row.unit : ""}
                     <span className="ml-1 text-[10px] uppercase text-muted-foreground">{row.status}</span>
                   </dd>
                 </div>
@@ -309,14 +295,14 @@ export function GaitVisualization({
                     aria-hidden
                   />
                   <span>
-                    {row.name}: {row.patient.toFixed(2)} {row.unit} vs reference {row.range[0]}–{row.range[1]} {row.unit} — {row.interpretation}
+                    {row.name}: {fmt(row.patient)} {row.patient != null ? row.unit : ""} vs reference {row.range[0] == null || row.range[1] == null ? "Not available" : `${row.range[0]}–${row.range[1]}`} {row.unit} — {row.interpretation}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
             <p className="mt-2 text-xs text-muted-foreground">
-              No parameter fell outside its reference range in this session.
+              {result.parameters.some((p) => p.status !== "unavailable") ? "No parameter fell outside its reference range in this session." : "Not available"}
             </p>
           )}
         </div>

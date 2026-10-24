@@ -115,7 +115,7 @@ function ReportsPage() {
                 title="Gait Results"
                 metrics={demoGait.parameters.slice(0, 4).map((parameter) => ({
                   label: parameter.name,
-                  value: `${parameter.patient} ${parameter.unit}`,
+                  value: parameter.patient == null ? "Not available" : `${parameter.patient} ${parameter.unit}`,
                 }))}
               />
               <ModalityReport
@@ -123,7 +123,7 @@ function ReportsPage() {
                 title="Facial Results"
                 metrics={demoFace.parameters.slice(0, 4).map((parameter) => ({
                   label: parameter.name,
-                  value: `${parameter.patient} ${parameter.unit}`,
+                  value: parameter.patient == null ? "Not available" : `${parameter.patient} ${parameter.unit}`,
                 }))}
               />
               <ModalityReport
@@ -145,20 +145,7 @@ function ReportsPage() {
                   <DemoBadge />
                 </div>
                 <div className="mt-3 h-52">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={demoGait.parameters.slice(0, 6).map((parameter) => ({
-                      name: parameter.name.length > 11 ? `${parameter.name.slice(0, 11)}…` : parameter.name,
-                      measured: Math.max(0, Math.min(160, Math.round((parameter.patient / (parameter.standard || 1)) * 100))),
-                      reference: 100,
-                    }))}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                      <XAxis dataKey="name" tick={{ fill: "#94A3B8", fontSize: 9 }} />
-                      <YAxis tick={{ fill: "#94A3B8", fontSize: 10 }} />
-                      <Tooltip contentStyle={{ background: "rgba(11,17,32,0.96)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }} />
-                      <Bar name="Reference" dataKey="reference" fill="#3B82F6" radius={[4, 4, 0, 0]} />
-                      <Bar name="Example measurement" dataKey="measured" fill="#22D3EE" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div className="grid h-full place-items-center text-sm text-muted-foreground">Not available</div>
                 </div>
               </div>
 
@@ -198,15 +185,15 @@ function ReportsPage() {
           {data?.map((r) => (
             <li key={r.id} className="flex items-center gap-4 p-4">
               <div className="grid h-10 w-10 place-items-center rounded-lg bg-white/5 text-xs font-semibold">
-                {(Number(r.probability) * 100).toFixed(0)}%
+                {r.kind === "gait" || r.probability == null ? "Not available" : `${(Number(r.probability) * 100).toFixed(0)}%`}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium truncate">
                   {r.patient_name || "Unnamed patient"} · {r.kind === "gait" ? "Gait analysis" : "Facial analysis"}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {new Date(r.created_at).toLocaleString()} · Mode: {r.mode} · Risk: {r.risk_level} ·
-                  Confidence {(Number(r.confidence) * 100).toFixed(0)}%
+                  {new Date(r.created_at).toLocaleString()} · Mode: {r.mode} · Risk: {r.kind === "gait" ? "Not available" : r.risk_level} ·
+                  Confidence {r.kind === "gait" || r.confidence == null ? "Not available" : `${(Number(r.confidence) * 100).toFixed(0)}%`}
                 </div>
               </div>
               <button

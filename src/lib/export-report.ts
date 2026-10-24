@@ -19,6 +19,8 @@ export type ReportMeta = {
   mediaName?: string | null;
 };
 
+const available = (v: number | null | undefined, suffix = "", scale = 1) => v == null || !Number.isFinite(v) ? "Not available" : `${(v * scale).toFixed(1)}${suffix}`;
+
 const HEADING_SIZE = 18;
 const BODY_SIZE = 14;
 const FONT = "times";
@@ -52,9 +54,9 @@ export function exportCSV(result: AnalysisResult, patient?: PatientInfo) {
     ["Gender", patient?.gender ?? ""],
     ["Analysis Mode", result.mode],
     ["Analysis Type", result.kind],
-    ["Parkinson's Risk", `${(result.probability * 100).toFixed(1)}%`],
+    ["Parkinson's Risk", available(result.probability, "%", 100)],
     ["Risk Level", result.riskLevel],
-    ["Prediction Confidence", `${(result.confidence * 100).toFixed(1)}%`],
+    ["Prediction Confidence", available(result.confidence, "%", 100)],
     ["Risk Model", result.model ? `${result.model.id} v${result.model.version} (${result.model.method})` : "n/a"],
     ["Model Clinically Validated", result.model ? (result.model.validated ? "Yes" : "No — research/screening use only") : "n/a"],
     ["Analysis Quality Score", result.qualityScore != null ? `${result.qualityScore}%` : "n/a"],
@@ -66,9 +68,9 @@ export function exportCSV(result: AnalysisResult, patient?: PatientInfo) {
     "Deviation %", "Status", "Interpretation",
   ];
   const rows = result.parameters.map((p) => [
-    p.name, p.patient, p.unit,
-    p.range[0], p.range[1], p.standard,
-    p.deviationPct, p.status, p.interpretation,
+    p.name, p.patient ?? "Not available", p.unit,
+    p.range[0] ?? "Not available", p.range[1] ?? "Not available", p.standard ?? "Not available",
+    p.deviationPct ?? "Not available", p.status === "unavailable" ? "Not available" : p.status, p.interpretation,
   ]);
   const csv = [...meta, header, ...rows]
     .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
@@ -211,13 +213,13 @@ export function exportPDF(result: AnalysisResult, patient?: PatientInfo, meta?: 
   y += 26;
   const s = result.summary;
   const summaryRows: [string, string][] = [
-    ["Parkinson's Risk Score", `${(result.probability * 100).toFixed(1)}%`],
+    ["Parkinson's Risk Score", available(result.probability, "%", 100)],
     ["Risk Level", capitalize(result.riskLevel)],
     ["Disease Severity", s.severity],
-    ["Overall Gait Health", `${s.overallGaitHealth}/100`],
-    ["Balance Score", `${s.balanceScore}%`],
-    ["Fall Risk", `${s.fallRiskScore}%`],
-    ["Prediction Confidence", `${(result.confidence * 100).toFixed(1)}%`],
+    ["Overall Gait Health", available(s.overallGaitHealth, "/100")],
+    ["Balance Score", available(s.balanceScore, "%")],
+    ["Fall Risk", available(s.fallRiskScore, "%")],
+    ["Prediction Confidence", available(result.confidence, "%", 100)],
     ["Analysis Quality Score", result.qualityScore != null ? `${result.qualityScore}%` : "Not available"],
     ["Risk Model",
       result.model ? `${result.model.id} v${result.model.version} · ${result.model.method}` : "Not recorded"],
@@ -228,7 +230,7 @@ export function exportPDF(result: AnalysisResult, patient?: PatientInfo, meta?: 
           : "Not clinically validated — research/screening indicator only"
         : "Not recorded"],
     ["Parameters Normal / Borderline / Abnormal",
-      `${s.counts.normal} / ${s.counts.borderline} / ${s.counts.abnormal}`],
+      s.counts.normal == null ? "Not available" : `${s.counts.normal} / ${s.counts.borderline} / ${s.counts.abnormal}`],
   ];
   autoTable(doc, {
     startY: y,
@@ -262,11 +264,11 @@ export function exportPDF(result: AnalysisResult, patient?: PatientInfo, meta?: 
     head: [["Parameter", "Patient", "Reference", "Unit", "Dev %", "Status"]],
     body: result.parameters.map((p) => [
       p.name,
-      String(p.patient),
-      `${p.range[0]}–${p.range[1]}`,
+      p.patient == null ? "Not available" : String(p.patient),
+      p.range[0] == null || p.range[1] == null ? "Not available" : `${p.range[0]}–${p.range[1]}`,
       p.unit,
-      `${p.deviationPct}%`,
-      capitalize(p.status),
+      available(p.deviationPct, "%"),
+      p.status === "unavailable" ? "Not available" : capitalize(p.status),
     ]),
     theme: "grid",
     headStyles: {
