@@ -11,6 +11,7 @@ import {
   createAnalysisJob,
   createUploadUrl,
   verifyUpload,
+  discardFailedUpload as discardUpload,
   updateJobStatus,
   saveJobResults,
   type CreateJobInput,
