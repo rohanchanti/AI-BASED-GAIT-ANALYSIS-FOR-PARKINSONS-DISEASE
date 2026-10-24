@@ -94,7 +94,7 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
     visit = nv;
     }
     const proto = PROTOCOLS.find((p) => p.id === data.protocol)!;
-    const ext = mime === "video/mp4" ? "mp4" : mime === "video/quicktime" ? "mov" : "webm";
+    const ext = mime === "video/mp4" ? "mp4" : mime === "video/quicktime" ? "mov" : /avi|msvideo/.test(mime) || /\.avi$/i.test(data.file.name) ? "avi" : /\.mp4$/i.test(data.file.name) ? "mp4" : /\.mov$/i.test(data.file.name) ? "mov" : "webm";
     const storagePath = `${userId}/${visit.id}/${data.sessionKey}.${ext}`;
     const { data: rec, error: re } = await supabase
       .from("recordings")
@@ -188,7 +188,7 @@ export const verifyUpload = createServerFn({ method: "POST" })
     if (total > VIDEO_LIMITS.maxBytes) return fail("File exceeds the upload size limit.");
     if (rec.size_bytes && total && total !== rec.size_bytes) return fail("Upload was incomplete. Please retry.");
     const container = sniffContainer(bytes);
-    if (!container) return fail("The file is not a valid MP4, WebM or MOV video (it may be corrupted).");
+    if (!container) return fail("The file is not a valid MP4, MOV, AVI or WebM video (it may be corrupted).");
     await supabase.from("recordings").update({ processing_status: "verified" }).eq("id", run.recording_id);
     await supabase.from("analysis_runs").update({ status: "processing", stage: "file_verification", progress: 0.05, heartbeat_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", run.id);
     return { ok: true as const, container, size: total };

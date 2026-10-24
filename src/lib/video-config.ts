@@ -1,7 +1,9 @@
 /** Shared, pure configuration and rules for video acquisition, jobs and quality gating. */
 
 export const VIDEO_LIMITS = {
-  maxBytes: 200 * 1024 * 1024,
+  maxBytes: 500 * 1024 * 1024,
+  /** Pre-recorded uploads must be at least this long. */
+  uploadMinDurationSec: 5,
   minBytes: 1024,
   minDurationSec: 3,
   maxRecordSeconds: 120,
@@ -9,13 +11,22 @@ export const VIDEO_LIMITS = {
   maxAttempts: 3,
 };
 
-export const ALLOWED_MIME = ["video/mp4", "video/webm", "video/quicktime"] as const;
-export const ALLOWED_EXT = /\.(mp4|webm|mov)$/i;
-export const ACCEPT_ATTR = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
+export const ALLOWED_MIME = ["video/mp4", "video/webm", "video/quicktime", "video/x-msvideo", "video/avi", "video/msvideo"] as const;
+export const ALLOWED_EXT = /\.(mp4|webm|mov|avi)$/i;
+/** File picker for pre-recorded gait uploads (WebM remains accepted for in-app camera recordings). */
+export const ACCEPT_ATTR = "video/mp4,video/quicktime,video/x-msvideo,video/avi,.mp4,.mov,.avi";
+export const UPLOAD_EXT = /\.(mp4|mov|avi)$/i;
+export const UPLOAD_MIME = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/avi", "video/msvideo"];
+
+export function checkUploadFile(f: { name: string; type: string; size: number }, limits = VIDEO_LIMITS): string | null {
+  const mime = f.type.split(";")[0];
+  if (!UPLOAD_EXT.test(f.name) && !UPLOAD_MIME.includes(mime)) return "Wrong file type. Please choose an MP4, MOV or AVI video.";
+  return checkVideoFile(f, limits);
+}
 
 export function checkVideoFile(f: { name: string; type: string; size: number }, limits = VIDEO_LIMITS): string | null {
   const mimeOk = (ALLOWED_MIME as readonly string[]).includes(f.type.split(";")[0]);
-  if (!mimeOk && !ALLOWED_EXT.test(f.name)) return "Unsupported format. Please choose an MP4, WebM or MOV video.";
+  if (!mimeOk && !ALLOWED_EXT.test(f.name)) return "Unsupported format. Please choose an MP4, MOV or AVI video.";
   if (f.size < limits.minBytes) return "This file is empty or too small to be a valid video.";
   if (f.size > limits.maxBytes)
     return `File is too large (${(f.size / 1048576).toFixed(0)} MB). The limit is ${limits.maxBytes / 1048576} MB.`;
@@ -23,8 +34,9 @@ export function checkVideoFile(f: { name: string; type: string; size: number }, 
 }
 
 /** Detect container type from the first bytes of a file. */
-export function sniffContainer(bytes: Uint8Array): "mp4" | "quicktime" | "webm" | null {
+export function sniffContainer(bytes: Uint8Array): "mp4" | "quicktime" | "webm" | "avi" | null {
   if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "webm";
+  if (bytes.length >= 12 && String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" && String.fromCharCode(...bytes.slice(8, 12)) === "AVI ") return "avi";
   if (bytes.length >= 12) {
     const box = String.fromCharCode(bytes[4], bytes[5], bytes[6], bytes[7]);
     if (box === "ftyp") {

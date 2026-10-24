@@ -5,7 +5,7 @@ import { subjectInformationSchema, ACQUISITION_CONSENT_TEXT, ACQUISITION_CONSENT
 import { saveSubjectInformation } from "@/lib/subject-information.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound, Pause, ClipboardList } from "lucide-react";
-import { ACCEPT_ATTR, checkVideoFile, PROTOCOLS, protocolById, VIDEO_LIMITS, type ProtocolId } from "@/lib/video-config";
+import { ACCEPT_ATTR, checkUploadFile, PROTOCOLS, protocolById, VIDEO_LIMITS, type ProtocolId } from "@/lib/video-config";
 import type { DetectedFile } from "@/components/UploadZone";
 
 export type SubjectInfo = {
@@ -344,13 +344,15 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
 
   function onPreviewMeta(el: HTMLVideoElement) {
     const d = el.duration;
+    if (!(Number.isFinite(d) && d > 0) && mode === "upload") { setVideoValid(false); setError("This video appears to be corrupted: its length could not be read. Please choose another file."); return; }
     if (Number.isFinite(d) && d > 0) setVideo((v) => (v ? { ...v, duration: d } : v));
+    if (mode === "upload" && Number.isFinite(d) && d < VIDEO_LIMITS.uploadMinDurationSec) { setVideoValid(false); setError(`This video is too short (${d.toFixed(1)} s). Uploaded videos must be at least ${VIDEO_LIMITS.uploadMinDurationSec} seconds long.`); return; }
     setVideoValid(true);
   }
 
   function pickFile(f: File | undefined) {
     if (!f) return;
-    const bad = checkVideoFile(f);
+    const bad = checkUploadFile(f);
     if (bad) {
       setError(bad);
       return;
@@ -588,7 +590,7 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
               >
                 <FolderOpen className="h-8 w-8 text-cyan" />
                 <span className="mt-3 text-sm font-medium">Choose or drop a walking video</span>
-                <span className="mt-1 text-xs text-muted-foreground">MP4, WebM or MOV · up to {VIDEO_LIMITS.maxBytes / 1048576} MB</span>
+                <span className="mt-1 text-xs text-muted-foreground">MP4, MOV or AVI · up to {VIDEO_LIMITS.maxBytes / 1048576} MB · at least {VIDEO_LIMITS.uploadMinDurationSec} s</span>
                 <input type="file" accept={ACCEPT} className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
               </label>
             )
@@ -596,7 +598,7 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
 
           {video && (
             <div className="space-y-3">
-              <video src={video.url} controls playsInline onLoadedMetadata={(e) => onPreviewMeta(e.currentTarget)} onError={() => { setVideoValid(false); setError("This video could not be read by your browser. It may be empty, corrupted or in an unsupported format — please record again or choose an MP4/WebM file."); }} className="w-full rounded-2xl border border-border/60 bg-background/60 aspect-video object-contain" />
+              <video src={video.url} controls playsInline onLoadedMetadata={(e) => onPreviewMeta(e.currentTarget)} onError={() => { setVideoValid(false); setError(/\.avi$/i.test(video.file.name) ? "This AVI file could not be played in your browser (it may be corrupted or use an unsupported codec). Please convert it to MP4 or choose another file." : "This video could not be read — it may be empty or corrupted. Please record again or choose another MP4, MOV or AVI file."); }} className="w-full rounded-2xl border border-border/60 bg-background/60 aspect-video object-contain" />
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 p-3 text-sm">
                 <div className="min-w-0">
                   <div className="truncate font-medium">{video.file.name}</div>
