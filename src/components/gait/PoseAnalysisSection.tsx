@@ -14,7 +14,7 @@ const LEFT_COLOR = "#38BDF8";
 const RIGHT_COLOR = "#C084FC";
 
 function fmt(v: number | null | undefined, unit = "", digits = 1) {
-  if (v == null || !isFinite(v)) return "Insufficient data";
+  if (v == null || !isFinite(v)) return "Not available";
   return `${v.toFixed(digits)}${unit}`;
 }
 

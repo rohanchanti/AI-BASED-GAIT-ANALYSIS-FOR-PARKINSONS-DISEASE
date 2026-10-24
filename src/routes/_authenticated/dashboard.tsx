@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { saveReport, listReports } from "@/lib/reports.functions";
-import type { AnalysisResult, ClinicalStatus, ParameterRow } from "@/lib/mock-analysis";
+import { analysisFromEngine, unavailableGaitAnalysis, type AnalysisResult, type ClinicalStatus, type ParameterRow } from "@/lib/mock-analysis";
+import type { EngineOutput } from "@/lib/gait-engine/parameters";
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
 import { readPoseAnalysis } from "@/lib/pose-session";
 import { TraceableParameters } from "@/components/gait/TraceableParameters";
@@ -68,25 +69,28 @@ type HistoryReport = {
   id: string;
   kind: string;
   mode: string;
-  probability: number;
-  confidence: number;
+  probability: number | null;
+  confidence: number | null;
   risk_level: string;
   patient_name: string | null;
   created_at: string;
 };
 
 
-const STATUS_COLOR: Record<ClinicalStatus, string> = {
+const STATUS_COLOR: Record<ClinicalStatus | "unavailable", string> = {
+  unavailable: "text-muted-foreground",
   normal: "text-success",
   borderline: "text-warning",
   abnormal: "text-danger",
 };
-const STATUS_DOT: Record<ClinicalStatus, string> = {
+const STATUS_DOT: Record<ClinicalStatus | "unavailable", string> = {
+  unavailable: "bg-muted",
   normal: "bg-success",
   borderline: "bg-warning",
   abnormal: "bg-danger",
 };
-const STATUS_HEX: Record<ClinicalStatus, string> = {
+const STATUS_HEX: Record<ClinicalStatus | "unavailable", string> = {
+  unavailable: "var(--color-muted)",
   normal: "#22C55E",
   borderline: "#F59E0B",
   abnormal: "#EF4444",
@@ -121,6 +125,13 @@ function DashboardPage() {
     if (raw) {
       try {
         const s = JSON.parse(raw) as Stored;
+        if (s.result.kind === "gait") {
+          const rawEngine = sessionStorage.getItem("latestEngine");
+          try {
+            const engine = rawEngine ? JSON.parse(rawEngine) as EngineOutput : null;
+            s.result = engine ? analysisFromEngine(engine, s.result.mode) : unavailableGaitAnalysis(s.result.mode);
+          } catch { s.result = unavailableGaitAnalysis(s.result.mode); }
+        }
         setStored(s);
         if (s.patient_name) setPatientName(s.patient_name);
         if (s.patient_age) setAge(s.patient_age);
@@ -252,7 +263,7 @@ function DashboardPage() {
             <GaugeCard
               label="Gait model output"
               value={stored.result.summary.parkinsonsRisk}
-              caption={`${stored.result.riskLevel} — PD-associated gait features`}
+              caption={stored.result.riskLevel === "Not available" ? "Not available" : `${stored.result.riskLevel} — PD-associated gait features`}
               hue="risk"
             />
             <GaugeCard
@@ -268,7 +279,7 @@ function DashboardPage() {
                   {stored.result.summary.severity}
                 </div>
                 <div className="mt-1 text-sm text-muted-foreground">
-                  Model confidence {(stored.result.summary.confidence * 100).toFixed(1)}%
+                  Model confidence {stored.result.summary.confidence == null ? "Not available" : `${(stored.result.summary.confidence * 100).toFixed(1)}%`}
                   {stored.result.qualityScore != null
                     ? ` · Data quality ${stored.result.qualityScore.toFixed(0)}%`
                     : ""}
@@ -377,11 +388,11 @@ function DashboardPage() {
             <div className="glass rounded-2xl p-6 overflow-x-auto">
               <PoseAnalysisSection
                 analysis={pose}
-                pixelAvailable
+                pixelAvailable={false}
                 pixelSummary={{
-                  cadence: stored.result.parameters.find((p) => p.key === "cadence")?.patient,
-                  symmetry: stored.result.parameters.find((p) => p.key === "walking_sym")?.patient,
-                  stability: stored.result.parameters.find((p) => p.key === "stability")?.patient,
+                  cadence: stored.result.parameters.find((p) => p.key === "cadence")?.patient ?? undefined,
+                  symmetry: stored.result.parameters.find((p) => p.key === "walking_sym")?.patient ?? undefined,
+                  stability: stored.result.parameters.find((p) => p.key === "stability")?.patient ?? undefined,
                 }}
               />
             </div>
@@ -445,7 +456,7 @@ function DashboardOverview({
   const facialReport = history.find((report) => report.kind === "facial");
   const latestGait = stored?.result.kind === "gait" ? stored : gaitReport;
   const latestFacial = stored?.result.kind === "facial" ? stored : facialReport;
-  const realTrend = [...history]
+  const realTrend = [...history].filter((report) => report.kind !== "gait" && report.probability != null)
     .reverse()
     .slice(-8)
     .map((report, index) => ({
@@ -453,21 +464,13 @@ function DashboardOverview({
       score: Math.round(Number(report.probability) * 100),
       order: index + 1,
     }));
-  const isDemoTrend = !loading && realTrend.length === 0;
-  const trendData = isDemoTrend
-    ? [
-        { label: "Session 1", score: 42, order: 1 },
-        { label: "Session 2", score: 38, order: 2 },
-        { label: "Session 3", score: 35, order: 3 },
-        { label: "Session 4", score: 31, order: 4 },
-      ]
-    : realTrend;
+  const trendData = realTrend;
   const latestReport = history[0];
-  const metricCount = stored?.result.parameters.length ?? 0;
+  const metricCount = stored?.result.parameters.filter((p) => p.patient != null).length ?? 0;
   const completedCount = history.length + (stored ? 1 : 0);
   const quality = stored?.result.qualityScore;
   const currentStatus = stored
-    ? `${stored.result.parameters.filter((parameter) => parameter.status !== "normal").length} features outside reference range`
+    ? `${stored.result.parameters.filter((parameter) => parameter.status === "abnormal" || parameter.status === "borderline").length} features outside reference range`
     : latestReport
       ? `Latest saved ${latestReport.kind} analysis: ${latestReport.risk_level}`
       : "No completed analyses are available yet.";
@@ -548,10 +551,12 @@ function DashboardOverview({
               <div className="text-xs uppercase tracking-[0.2em] text-cyan">Historical Trend</div>
               <div className="mt-1 text-xs text-muted-foreground">Analysis score across saved sessions</div>
             </div>
-            {isDemoTrend && <DemoBadge />}
+            
           </div>
           {loading ? (
             <div className="grid h-44 place-items-center text-sm text-muted-foreground">Loading history…</div>
+          ) : trendData.length === 0 ? (
+            <div className="grid h-44 place-items-center text-sm text-muted-foreground">Not available</div>
           ) : (
             <ResponsiveContainer width="100%" height={176}>
               <LineChart data={trendData} margin={{ top: 18, right: 12, left: -22, bottom: 0 }}>
@@ -715,10 +720,10 @@ function ExportBtn({ icon: Icon, label, onClick }: { icon: React.ElementType; la
   );
 }
 
-function StatBadge({ n, label, color }: { n: number; label: string; color: "success" | "warning" | "danger" }) {
+function StatBadge({ n, label, color }: { n: number | null; label: string; color: "success" | "warning" | "danger" }) {
   return (
     <div className={`rounded-lg border border-${color}/40 bg-${color}/5 p-2`}>
-      <div className={`font-display text-2xl font-semibold text-${color}`}>{n}</div>
+      <div className={`font-display text-2xl font-semibold text-${color}`}>{n ?? "Not available"}</div>
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
@@ -726,9 +731,9 @@ function StatBadge({ n, label, color }: { n: number; label: string; color: "succ
 
 function GaugeCard({
   label, value, caption, hue,
-}: { label: string; value: number; caption: string; hue: "risk" | "health" }) {
-  const pct = Math.round(value);
-  const angle = (pct / 100) * 360;
+}: { label: string; value: number | null; caption: string; hue: "risk" | "health" }) {
+  const pct = value == null ? null : Math.round(value);
+  const angle = ((pct ?? 0) / 100) * 360;
   const grad =
     hue === "risk"
       ? `conic-gradient(from -90deg, #22C55E 0deg, #F59E0B ${angle * 0.5}deg, #EF4444 ${angle}deg, oklch(0.28 0.04 265 / 0.35) ${angle}deg 360deg)`
@@ -740,7 +745,7 @@ function GaugeCard({
         <div className="absolute inset-0 rounded-full" style={{ background: grad }} />
         <div className="absolute inset-3 rounded-full bg-background grid place-items-center">
           <div className="text-center">
-            <div className="font-display text-4xl font-bold gradient-text">{pct}%</div>
+            <div className="font-display text-4xl font-bold gradient-text">{pct == null ? <span className="text-lg">Not available</span> : `${pct}%`}</div>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground mt-1">{label}</div>
           </div>
         </div>
@@ -756,9 +761,9 @@ function ClinicalSummaryCard({ result }: { result: AnalysisResult }) {
     <div className="glass rounded-2xl p-6">
       <div className="text-xs uppercase tracking-[0.2em] text-cyan">AI Clinical Summary</div>
       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-        <MetricPill label="Balance Score" value={`${s.balanceScore}%`} sub={s.assessments.balance} />
-        <MetricPill label="Fall Risk" value={`${s.fallRiskScore}%`} sub={s.assessments.fallRisk} />
-        <MetricPill label="Mobility" value={`${s.overallGaitHealth}/100`} sub={s.assessments.mobility} />
+        <MetricPill label="Balance Score" value={s.balanceScore == null ? "Not available" : `${s.balanceScore}%`} sub={s.assessments.balance} />
+        <MetricPill label="Fall Risk" value={s.fallRiskScore == null ? "Not available" : `${s.fallRiskScore}%`} sub={s.assessments.fallRisk} />
+        <MetricPill label="Mobility" value={s.overallGaitHealth == null ? "Not available" : `${s.overallGaitHealth}/100`} sub={s.assessments.mobility} />
         <MetricPill label="Symmetry" value={s.assessments.symmetry.split(" ").slice(0, 2).join(" ")} sub={s.assessments.stability} />
       </div>
       <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
@@ -795,6 +800,17 @@ function ClinicalTable({ rows }: { rows: ParameterRow[] }) {
       </thead>
       <tbody>
         {rows.map((p) => {
+          if (p.patient == null || p.range[0] == null || p.range[1] == null || p.deviationPct == null || p.status === "unavailable") return (
+            <tr key={p.key} className="border-t border-border/40 align-top">
+              <td className="py-3 pr-2"><div className="font-medium">{p.name}</div><div className="text-xs text-muted-foreground">{p.unit}</div></td>
+              <td className="py-3 text-right font-mono">{p.patient ?? "Not available"}</td>
+              <td className="py-3 text-right text-muted-foreground">Not available</td>
+              <td className="py-3 pl-4">Not available</td>
+              <td className="py-3 text-right">Not available</td>
+              <td className="py-3 text-center">Not available</td>
+              <td className="py-3 pl-4 text-xs text-muted-foreground">Not available</td>
+            </tr>
+          );
           const [lo, hi] = p.range;
           const span = Math.max(hi - lo, Math.abs((lo + hi) / 2) * 0.4 || 1);
           const min = lo - span;
@@ -859,9 +875,9 @@ const tooltipStyle: React.CSSProperties = {
 function ParamRadar({ result }: { result: AnalysisResult }) {
   const data = useMemo(
     () =>
-      result.parameters.map((p) => {
-        const mid = (p.range[0] + p.range[1]) / 2 || 1;
-        const norm = Math.min(180, Math.max(0, (p.patient / mid) * 100));
+      result.parameters.filter((p) => p.patient != null && p.range[0] != null && p.range[1] != null).map((p) => {
+        const mid = (Number(p.range[0]) + Number(p.range[1])) / 2 || 1;
+        const norm = Math.min(180, Math.max(0, (Number(p.patient) / mid) * 100));
         return {
           name: p.name.length > 14 ? p.name.slice(0, 14) + "…" : p.name,
           patient: +norm.toFixed(1),
@@ -870,6 +886,7 @@ function ParamRadar({ result }: { result: AnalysisResult }) {
       }),
     [result],
   );
+  if (!data.length) return <div className="grid h-[340px] place-items-center text-sm text-muted-foreground">Not available</div>;
   return (
     <ResponsiveContainer width="100%" height={340}>
       <RadarChart data={data}>
@@ -886,11 +903,12 @@ function ParamRadar({ result }: { result: AnalysisResult }) {
 }
 
 function ParamBar({ result }: { result: AnalysisResult }) {
-  const data = result.parameters.map((p) => ({
+  const data = result.parameters.filter((p) => p.patient != null && p.standard != null).map((p) => ({
     name: p.name.length > 12 ? p.name.slice(0, 12) + "…" : p.name,
     patient: p.patient,
     standard: p.standard,
   }));
+  if (!data.length) return <div className="grid h-[280px] place-items-center text-sm text-muted-foreground">Not available</div>;
   return (
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} margin={{ bottom: 30 }}>
@@ -908,6 +926,7 @@ function ParamBar({ result }: { result: AnalysisResult }) {
 
 function StatusPie({ result }: { result: AnalysisResult }) {
   const c = result.summary.counts;
+  if (c.normal == null || c.borderline == null || c.abnormal == null) return <div className="grid h-[280px] place-items-center text-sm text-muted-foreground">Not available</div>;
   const data = [
     { name: "Normal", value: c.normal, s: "normal" as ClinicalStatus },
     { name: "Borderline", value: c.borderline, s: "borderline" as ClinicalStatus },

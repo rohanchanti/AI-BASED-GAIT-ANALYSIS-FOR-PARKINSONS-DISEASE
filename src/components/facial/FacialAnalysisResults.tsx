@@ -49,7 +49,7 @@ function DemoBadge() {
 }
 
 function fmt(row: ParameterRow) {
-  return `${row.patient.toFixed(2)} ${row.unit}`;
+  return row.patient == null ? "Not available" : `${row.patient.toFixed(2)} ${row.unit}`;
 }
 
 export function FacialAnalysisResults({ result }: { result: AnalysisResult }) {
@@ -62,10 +62,10 @@ export function FacialAnalysisResults({ result }: { result: AnalysisResult }) {
   const chartData = useMemo(
     () =>
       result.parameters.map((row) => {
-        const midpoint = (row.range[0] + row.range[1]) / 2 || 1;
+        const midpoint = (Number(row.range[0]) + Number(row.range[1])) / 2 || 1;
         return {
           name: row.name,
-          example: Math.max(0, Math.min(180, (row.patient / midpoint) * 100)),
+          example: Math.max(0, Math.min(180, (Number(row.patient) / midpoint) * 100)),
           reference: 100,
         };
       }),
@@ -112,7 +112,7 @@ export function FacialAnalysisResults({ result }: { result: AnalysisResult }) {
                     </div>
                     <div className="shrink-0 text-right">
                       <div className="font-display text-base font-semibold">{fmt(row)}</div>
-                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] capitalize ${STATUS_STYLE[row.status]}`}>
+                      <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] capitalize ${row.status === "unavailable" ? "" : STATUS_STYLE[row.status]}`}>
                         {row.status}
                       </span>
                     </div>

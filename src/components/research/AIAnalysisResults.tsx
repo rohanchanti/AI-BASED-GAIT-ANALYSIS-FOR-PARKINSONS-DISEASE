@@ -31,7 +31,7 @@ function DataBadge({ kind }: { kind: BadgeKind }) {
 }
 
 function fmt(v: number | null | undefined, digits = 2): string {
-  if (v == null || !Number.isFinite(v)) return "—";
+  if (v == null || !Number.isFinite(v)) return "Not available";
   return v.toFixed(digits);
 }
 
@@ -41,7 +41,7 @@ function fmt(v: number | null | undefined, digits = 2): string {
  */
 export function AIAnalysisResults({ result, pose, analysisId, analysisTimestamp }: Props) {
   const params = result.parameters;
-  const flagged = params.filter((p) => p.status !== "normal");
+  const flagged = params.filter((p) => p.status === "borderline" || p.status === "abnormal");
 
   // Key detected parameters: prefer clinically flagged rows, else first rows.
   const keyParams: ParameterRow[] = (flagged.length > 0 ? flagged : params).slice(0, 6);
@@ -77,11 +77,8 @@ export function AIAnalysisResults({ result, pose, analysisId, analysisTimestamp 
   // AI interpretation: reuse existing per-parameter interpretations and
   // summary assessments — wording already avoids diagnostic claims.
   const interpretationLines: string[] = [];
-  interpretationLines.push(
-    `Overall gait health score ${result.summary.overallGaitHealth.toFixed(0)}/100 with ` +
-      `${result.summary.counts.normal} normal, ${result.summary.counts.borderline} borderline and ` +
-      `${result.summary.counts.abnormal} abnormal parameters across ${params.length} gait features.`,
-  );
+  interpretationLines.push(result.summary.overallGaitHealth == null ? "Not available" :
+    `Overall gait health score ${result.summary.overallGaitHealth.toFixed(0)}/100 with ${result.summary.counts.normal} normal, ${result.summary.counts.borderline} borderline and ${result.summary.counts.abnormal} abnormal parameters across ${params.length} gait features.`);
   interpretationLines.push(`Balance: ${result.summary.assessments.balance}`);
   interpretationLines.push(`Mobility: ${result.summary.assessments.mobility}`);
   interpretationLines.push(`Symmetry: ${result.summary.assessments.symmetry}`);
@@ -130,14 +127,14 @@ export function AIAnalysisResults({ result, pose, analysisId, analysisTimestamp 
                 {fmt(p.patient)} <span className="text-xs font-normal text-muted-foreground">{p.unit}</span>
               </div>
               <div className="mt-1 text-[11px] text-muted-foreground">
-                Reference {fmt(p.range[0])}–{fmt(p.range[1])} {p.unit}
+                Reference {p.range[0] == null || p.range[1] == null ? "Not available" : `${fmt(p.range[0])}–${fmt(p.range[1])}`} {p.unit}
               </div>
               <div
                 className={`mt-1 text-[11px] font-medium ${
                   p.status === "normal" ? "text-success" : p.status === "borderline" ? "text-warning" : "text-danger"
                 }`}
               >
-                {p.status === "normal" ? "Within range" : p.status === "borderline" ? "Borderline" : "Outside range"}
+                {p.status === "unavailable" ? "Not available" : p.status === "normal" ? "Within range" : p.status === "borderline" ? "Borderline" : "Outside range"}
               </div>
             </div>
           ))}
@@ -186,7 +183,7 @@ export function AIAnalysisResults({ result, pose, analysisId, analysisTimestamp 
         </div>
         {detectedFeatures.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            All measured gait features fall within their healthy reference ranges in this session.
+            {params.some((p) => p.status !== "unavailable") ? "All measured gait features fall within their healthy reference ranges in this session." : "Not available"}
           </p>
         ) : (
           <ul className="space-y-2">
@@ -204,8 +201,8 @@ export function AIAnalysisResults({ result, pose, analysisId, analysisTimestamp 
                   <span className="font-medium">{p.name}</span>
                   <span className="text-muted-foreground">
                     {" "}
-                    — measured {fmt(p.patient)} {p.unit} vs reference {fmt(p.range[0])}–{fmt(p.range[1])} {p.unit}
-                    {" "}({p.deviationPct >= 0 ? "+" : ""}{fmt(p.deviationPct, 1)}% deviation)
+                    — measured {fmt(p.patient)} {p.unit} vs reference {p.range[0] == null || p.range[1] == null ? "Not available" : `${fmt(p.range[0])}–${fmt(p.range[1])}`} {p.unit}
+                    {" "}({p.deviationPct != null && p.deviationPct >= 0 ? "+" : ""}{fmt(p.deviationPct, 1)}% deviation)
                   </span>
                 </div>
               </li>
@@ -229,7 +226,7 @@ export function AIAnalysisResults({ result, pose, analysisId, analysisTimestamp 
           ))}
           {hasConfidence && (
             <p className="text-[11px] text-muted-foreground">
-              Model confidence for this run: {(result.summary.confidence * 100).toFixed(1)}%.
+              Model confidence for this run: {(Number(result.summary.confidence) * 100).toFixed(1)}%.
               This reflects internal model certainty only — it is an uncalibrated research output,
               not a probability of any disease.
             </p>

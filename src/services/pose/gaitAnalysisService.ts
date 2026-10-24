@@ -163,8 +163,8 @@ export function computeMetrics(
   );
   const gaitCycleDuration = cycleVals.length ? +mean(cycleVals).toFixed(3) : null;
 
-  const leftStepTime = leftCycleDuration ? +(leftCycleDuration / 2).toFixed(3) : null;
-  const rightStepTime = rightCycleDuration ? +(rightCycleDuration / 2).toFixed(3) : null;
+  const leftStepTime = null;
+  const rightStepTime = null;
 
   const romOf = (k: JointKey) => joints[k]?.rom ?? null;
   const symmetry: SymmetryEntry[] = [

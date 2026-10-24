@@ -6,4 +6,4 @@
 
 - [x] Final integration: clinical CSV/JSON exports, consent/review defects fixed, E2E clinical/research/isolation/regression checks
 - [ ] Assign real clinician/researcher/admin roles (waiting on user)
-- [ ] Remove listed mock gait values and verify missing-value handling, preserving real measurements and unrelated features.
+- [x] Remove listed mock gait values and verify missing-value handling; 53 automated checks and signed-in report checks passed.

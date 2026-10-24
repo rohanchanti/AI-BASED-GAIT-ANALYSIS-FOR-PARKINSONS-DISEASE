@@ -118,19 +118,15 @@ export function summarizeCycles(cycles: GaitCycle[]): CycleSummary {
   const cycleDuration = of(cycles, (c) => c.duration);
   const stancePct = of(cycles, (c) => c.stancePct);
   const swingPct = of(cycles, (c) => c.swingPct);
-  const stepTime = aggregate(cycles.map((c) => c.duration / 2));
+  const stepTime = aggregate([]);
 
   const L = cycles.filter((c) => c.side === "left");
   const R = cycles.filter((c) => c.side === "right");
   const left = { cycleDuration: of(L, (c) => c.duration), stancePct: of(L, (c) => c.stancePct) };
   const right = { cycleDuration: of(R, (c) => c.duration), stancePct: of(R, (c) => c.stancePct) };
 
-  const swing = robustValue(swingPct);
-  // In a full cycle each limb swings once; the overlap of the two stance
-  // phases is the double-support fraction: DS ≈ 100 − 2 × swing%.
-  const doubleSupportPct =
-    swing == null ? null : +Math.max(0, Math.min(45, 100 - 2 * swing)).toFixed(1);
-  const singleSupportPct = swing == null ? null : +Math.max(0, Math.min(50, swing)).toFixed(1);
+  const doubleSupportPct = null;
+  const singleSupportPct = null;
 
   const symmetry: SymmetryStat[] = [
     {
@@ -140,7 +136,7 @@ export function summarizeCycles(cycles: GaitCycle[]): CycleSummary {
       unit: "s",
       difference:
         robustValue(left.cycleDuration) != null && robustValue(right.cycleDuration) != null
-          ? +Math.abs(robustValue(left.cycleDuration)! - robustValue(right.cycleDuration)!).toFixed(3)
+          ? +Math.abs(Number(robustValue(left.cycleDuration)) - Number(robustValue(right.cycleDuration))).toFixed(3)
           : null,
       index: asymmetryIndex(robustValue(left.cycleDuration), robustValue(right.cycleDuration)),
     },
@@ -151,7 +147,7 @@ export function summarizeCycles(cycles: GaitCycle[]): CycleSummary {
       unit: "%",
       difference:
         robustValue(left.stancePct) != null && robustValue(right.stancePct) != null
-          ? +Math.abs(robustValue(left.stancePct)! - robustValue(right.stancePct)!).toFixed(2)
+          ? +Math.abs(Number(robustValue(left.stancePct)) - Number(robustValue(right.stancePct))).toFixed(2)
           : null,
       index: asymmetryIndex(robustValue(left.stancePct), robustValue(right.stancePct)),
     },
