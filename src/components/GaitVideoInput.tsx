@@ -590,7 +590,7 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
               >
                 <FolderOpen className="h-8 w-8 text-cyan" />
                 <span className="mt-3 text-sm font-medium">Choose or drop a walking video</span>
-                <span className="mt-1 text-xs text-muted-foreground">MP4, WebM or MOV · up to {VIDEO_LIMITS.maxBytes / 1048576} MB</span>
+                <span className="mt-1 text-xs text-muted-foreground">MP4, MOV or AVI · up to {VIDEO_LIMITS.maxBytes / 1048576} MB · at least {VIDEO_LIMITS.uploadMinDurationSec} s</span>
                 <input type="file" accept={ACCEPT} className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
               </label>
             )

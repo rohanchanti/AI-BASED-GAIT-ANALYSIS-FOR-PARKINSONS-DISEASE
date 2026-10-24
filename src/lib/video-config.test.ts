@@ -1,12 +1,23 @@
 import { describe, it, expect } from "vitest";
-import { checkVideoFile, sniffContainer, canTransition, isStale, evaluateQuality, checkProtocol, protocolById, VIDEO_LIMITS } from "./video-config";
+import { checkVideoFile, checkUploadFile, sniffContainer, canTransition, isStale, evaluateQuality, checkProtocol, protocolById, VIDEO_LIMITS } from "./video-config";
 
 const good = { durationSec: 10, fps: 30, totalFrames: 150, framesWithPose: 145, multiPersonFrames: 0, poseConfidence: 0.8, bodyVisibility: 0.9, usableFrames: 140, meanSubjectHeight: 0.6, edgeCutRatio: 0, meanLuminance: null };
 
 describe("upload limits", () => {
-  it("rejects files over 200 MB", () => expect(checkVideoFile({ name: "a.mp4", type: "video/mp4", size: VIDEO_LIMITS.maxBytes + 1 })).toMatch(/too large/));
-  it("rejects AVI", () => expect(checkVideoFile({ name: "a.avi", type: "video/x-msvideo", size: 5000 })).toMatch(/Unsupported/));
-  it("accepts WebM", () => expect(checkVideoFile({ name: "a.webm", type: "video/webm", size: 5000 })).toBeNull());
+  it("max upload is 500 MB", () => expect(VIDEO_LIMITS.maxBytes).toBe(500 * 1024 * 1024));
+  it("rejects files over 500 MB", () => expect(checkUploadFile({ name: "a.mp4", type: "video/mp4", size: 500 * 1024 * 1024 + 1 })).toMatch(/too large/));
+  it("accepts MP4, MOV and AVI uploads", () => {
+    expect(checkUploadFile({ name: "a.mp4", type: "video/mp4", size: 5000 })).toBeNull();
+    expect(checkUploadFile({ name: "a.mov", type: "video/quicktime", size: 5000 })).toBeNull();
+    expect(checkUploadFile({ name: "a.avi", type: "video/x-msvideo", size: 5000 })).toBeNull();
+  });
+  it("rejects WebM and other types for uploads", () => {
+    expect(checkUploadFile({ name: "a.webm", type: "video/webm", size: 5000 })).toMatch(/Wrong file type/);
+    expect(checkUploadFile({ name: "a.mkv", type: "video/x-matroska", size: 5000 })).toMatch(/Wrong file type/);
+  });
+  it("uploads must be at least 5 s", () => expect(VIDEO_LIMITS.uploadMinDurationSec).toBe(5));
+  it("still accepts WebM camera recordings", () => expect(checkVideoFile({ name: "a.webm", type: "video/webm", size: 5000 })).toBeNull());
+  it("recognises AVI containers", () => expect(sniffContainer(new Uint8Array([82, 73, 70, 70, 0, 0, 0, 0, 65, 86, 73, 32]))).toBe("avi"));
 });
 
 describe("signature check", () => {
