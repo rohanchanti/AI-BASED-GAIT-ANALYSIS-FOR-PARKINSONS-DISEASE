@@ -159,6 +159,7 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [requesting, setRequesting] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+  const [camIssue, setCamIssue] = useState<CamIssue | null>(null);
   const [facing, setFacing] = useState<"user" | "environment">("environment");
   const [hasMultipleCams, setHasMultipleCams] = useState(false);
   const [recording, setRecording] = useState(false);
