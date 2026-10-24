@@ -184,7 +184,7 @@ function ReportsPage() {
         <ul className="divide-y divide-border/60">
           {data?.map((r) => (
             <li key={r.id} className="flex items-center gap-4 p-4">
-              <div className="grid h-10 w-10 place-items-center rounded-lg bg-white/5 text-xs font-semibold">
+              <div className="grid min-h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/5 text-center text-[10px] font-semibold">
                 {r.kind === "gait" || r.probability == null ? "Not available" : `${(Number(r.probability) * 100).toFixed(0)}%`}
               </div>
               <div className="min-w-0 flex-1">

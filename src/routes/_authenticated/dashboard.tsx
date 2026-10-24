@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { saveReport, listReports } from "@/lib/reports.functions";
-import type { AnalysisResult, ClinicalStatus, ParameterRow } from "@/lib/mock-analysis";
+import { analysisFromEngine, unavailableGaitAnalysis, type AnalysisResult, type ClinicalStatus, type ParameterRow } from "@/lib/mock-analysis";
+import type { EngineOutput } from "@/lib/gait-engine/parameters";
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
 import { readPoseAnalysis } from "@/lib/pose-session";
 import { TraceableParameters } from "@/components/gait/TraceableParameters";
@@ -124,6 +125,13 @@ function DashboardPage() {
     if (raw) {
       try {
         const s = JSON.parse(raw) as Stored;
+        if (s.result.kind === "gait") {
+          const rawEngine = sessionStorage.getItem("latestEngine");
+          try {
+            const engine = rawEngine ? JSON.parse(rawEngine) as EngineOutput : null;
+            s.result = engine ? analysisFromEngine(engine, s.result.mode) : unavailableGaitAnalysis(s.result.mode);
+          } catch { s.result = unavailableGaitAnalysis(s.result.mode); }
+        }
         setStored(s);
         if (s.patient_name) setPatientName(s.patient_name);
         if (s.patient_age) setAge(s.patient_age);
