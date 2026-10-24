@@ -116,15 +116,15 @@ type Def = {
   interpretation: string;
 };
 
-const GAIT_DEFS: Def[] = [
-  { key: "walking_speed",  name: "Walking Speed",           unit: "m/s",        range: [0, 0], worse: "below",   interpretation: "Not available" },
+const GAIT_DEFS: Pick<Def, "key" | "name" | "unit">[] = [
+  { key: "walking_speed",  name: "Walking Speed",           unit: "m/s" },
   { key: "cadence",        name: "Cadence",                 unit: "steps/min",  range: [0, 0],   worse: "below",   interpretation: "Not available" },
-  { key: "step_length",    name: "Step Length",             unit: "m",          range: [0, 0], worse: "below",   interpretation: "Not available" },
-  { key: "stride_length",  name: "Stride Length",           unit: "m",          range: [0, 0], worse: "below",   interpretation: "Not available" },
+  { key: "step_length",    name: "Step Length",             unit: "m" },
+  { key: "stride_length",  name: "Stride Length",           unit: "m" },
   { key: "step_width",     name: "Step Width",              unit: "cm",         range: [0, 0],      worse: "outside", interpretation: "Not available" },
-  { key: "step_time",      name: "Step Time",               unit: "s",          range: [0, 0], worse: "above",   interpretation: "Not available" },
-  { key: "stride_time",    name: "Stride Time",             unit: "s",          range: [0, 0], worse: "above",   interpretation: "Not available" },
-  { key: "gait_cycle",     name: "Gait Cycle Duration",     unit: "s",          range: [0, 0], worse: "above",   interpretation: "Not available" },
+  { key: "step_time",      name: "Step Time",               unit: "s" },
+  { key: "stride_time",    name: "Stride Time",             unit: "s" },
+  { key: "gait_cycle",     name: "Gait Cycle Duration",     unit: "s" },
   { key: "stance_phase",   name: "Stance Phase",            unit: "%",          range: [0, 0],     worse: "above",   interpretation: "Not available" },
   { key: "swing_phase",    name: "Swing Phase",             unit: "%",          range: [0, 0],     worse: "below",   interpretation: "Not available" },
   { key: "double_support", name: "Double Support Time",     unit: "%",          range: [0, 0],     worse: "above",   interpretation: "Not available" },
@@ -186,7 +186,7 @@ export function generateMockAnalysis(
 ): AnalysisResult {
   if (kind === "gait") return unavailableGaitAnalysis(mode);
   const rand = seeded(hash(fileNameSeed));
-  const defs = kind === "gait" ? GAIT_DEFS : FACE_DEFS;
+  const defs = FACE_DEFS;
 
   // deviation intensity varies per mode
   const intensity =
@@ -211,7 +211,6 @@ export function generateMockAnalysis(
 
     // guardrails
     if (d.key === "head_tremor" && patient < 0) patient = 0;
-    if (d.key === "tug") patient = Math.max(6, patient + (rand() > 0.7 ? 4 * rand() : 0));
 
     patient = Math.max(0, +patient.toFixed(3));
     const { status, deviationPct } = classify(d, patient);
