@@ -50,6 +50,13 @@
       "when": 1792857971634,
       "tag": "0006_allow_unavailable_gait_scores",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792862637336,
+      "tag": "0007_recordings_subject_link",
+      "breakpoints": true
     }
   ]
 }

@@ -484,6 +484,7 @@ export type Database = {
           size_bytes: number | null
           source: string
           storage_path: string | null
+          subject_id: string | null
           trial_number: number | null
           visit_id: string
           walking_distance_m: number | null
@@ -507,6 +508,7 @@ export type Database = {
           size_bytes?: number | null
           source: string
           storage_path?: string | null
+          subject_id?: string | null
           trial_number?: number | null
           visit_id: string
           walking_distance_m?: number | null
@@ -530,12 +532,20 @@ export type Database = {
           size_bytes?: number | null
           source?: string
           storage_path?: string | null
+          subject_id?: string | null
           trial_number?: number | null
           visit_id?: string
           walking_distance_m?: number | null
           width?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "recordings_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "subjects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "recordings_visit_id_fkey"
             columns: ["visit_id"]
