@@ -541,10 +541,17 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
                 </div>
               )}
 
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                Minimum duration for {protocolById(protocol).label}: <strong className="text-foreground">{protocolById(protocol).minDurationSec} s</strong>
+                {recording && (elapsed >= protocolById(protocol).minDurationSec
+                  ? <span className="ml-2 text-primary">✓ Minimum reached</span>
+                  : <span className="ml-2">({protocolById(protocol).minDurationSec - elapsed} s to go)</span>)}
+              </p>
+
               <div className="flex flex-wrap gap-2">
                 {!video && !recording && stream && (
                   <button type="button" onClick={startRecording} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground glow-primary">
-                    <Circle className="h-4 w-4" /> Start Recording
+                    <Circle className="h-4 w-4" /> Start
                   </button>
                 )}
                 {recording && typeof MediaRecorder !== "undefined" && typeof MediaRecorder.prototype.pause === "function" && (
@@ -554,13 +561,13 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
                 )}
                 {recording && (
                   <button type="button" onClick={stopRecording} className="inline-flex items-center gap-2 rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground">
-                    <Square className="h-4 w-4" /> Stop Recording
+                    <Square className="h-4 w-4" /> Stop
                   </button>
                 )}
                 {video && (
                   <>
                     <button type="button" onClick={retake} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm hover:border-primary">
-                      <RotateCcw className="h-4 w-4" /> Record Again
+                      <RotateCcw className="h-4 w-4" /> Retake
                     </button>
                     <button type="button" disabled={confirmed || !videoValid} onClick={confirmVideo} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground glow-primary disabled:opacity-60">
                       <Check className="h-4 w-4" /> {confirmed ? "Video selected" : "Use This Video"}
