@@ -291,7 +291,6 @@ function LandingPage() {
             {/* Stat pills */}
             <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
               {[
-                { k: "27+", v: "quantitative parameters" },
                 { k: "33", v: "tracked pose landmarks" },
                 { k: "5", v: "acquisition protocols" },
                 { k: "CSV · JSON · PDF", v: "research export", small: true },
@@ -337,7 +336,7 @@ function LandingPage() {
             { icon: UploadCloud, n: "1", title: "Upload / Record Data", body: "Drag in or select a walking or facial recording. The media type is detected automatically." },
             { icon: Brain, n: "2", title: "AI Analysis", body: "The pipeline analyses the recording in the background — pose tracking, gait events, and quality checks." },
             { icon: LineChart, n: "3", title: "View Results", body: "See quantitative parameters, charts, and model output on your research dashboard." },
-            { icon: FileText, n: "4", title: "Generate Report", body: "Export a research-grade report as PDF, or the data as CSV, JSON, or PNG." },
+            { icon: FileText, n: "4", title: "Generate Report", body: "Export a report as PDF, or the data as CSV, JSON, or PNG." },
           ].map((s) => (
             <div key={s.n} className="glass rounded-2xl p-6 relative hover:glow-primary transition">
               <span className="absolute top-4 right-5 font-display text-3xl font-bold text-foreground/10">{s.n}</span>

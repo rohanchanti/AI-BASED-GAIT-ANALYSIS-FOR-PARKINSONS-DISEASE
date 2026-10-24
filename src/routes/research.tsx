@@ -250,9 +250,8 @@ function ResearchPage() {
       <div className="text-xs uppercase tracking-[0.2em] text-cyan">Whitepaper</div>
       <h1 className="mt-2 font-display text-4xl sm:text-5xl font-semibold">Research foundations</h1>
       <p className="mt-4 text-muted-foreground max-w-2xl">
-        NeuroStride AI combines validated biomechanical markers of Parkinsonian gait with
-        modern computer-vision-based facial analysis. Every parameter is grounded in
-        peer-reviewed clinical literature.
+        NeuroStride AI combines biomechanical markers of Parkinsonian gait with
+        modern computer-vision-based facial analysis.
       </p>
 
       <div className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-4">
