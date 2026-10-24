@@ -118,22 +118,22 @@ type Def = {
 
 const GAIT_DEFS: Pick<Def, "key" | "name" | "unit">[] = [
   { key: "walking_speed",  name: "Walking Speed",           unit: "m/s" },
-  { key: "cadence",        name: "Cadence",                 unit: "steps/min",  range: [0, 0],   worse: "below",   interpretation: "Not available" },
+  { key: "cadence",        name: "Cadence",                 unit: "steps/min" },
   { key: "step_length",    name: "Step Length",             unit: "m" },
   { key: "stride_length",  name: "Stride Length",           unit: "m" },
-  { key: "step_width",     name: "Step Width",              unit: "cm",         range: [0, 0],      worse: "outside", interpretation: "Not available" },
+  { key: "step_width",     name: "Step Width",              unit: "cm" },
   { key: "step_time",      name: "Step Time",               unit: "s" },
   { key: "stride_time",    name: "Stride Time",             unit: "s" },
   { key: "gait_cycle",     name: "Gait Cycle Duration",     unit: "s" },
-  { key: "stance_phase",   name: "Stance Phase",            unit: "%",          range: [0, 0],     worse: "above",   interpretation: "Not available" },
-  { key: "swing_phase",    name: "Swing Phase",             unit: "%",          range: [0, 0],     worse: "below",   interpretation: "Not available" },
-  { key: "double_support", name: "Double Support Time",     unit: "%",          range: [0, 0],     worse: "above",   interpretation: "Not available" },
-  { key: "single_support", name: "Single Support Time",     unit: "%",          range: [0, 0],     worse: "below",   interpretation: "Not available" },
-  { key: "arm_swing_sym",  name: "Arm Swing Symmetry",      unit: "%",          range: [0, 0],    worse: "below",   interpretation: "Not available" },
-  { key: "walking_sym",    name: "Walking Symmetry Index",  unit: "%",          range: [0, 0],    worse: "below",   interpretation: "Not available" },
-  { key: "stability",      name: "Gait Stability Index",    unit: "%",          range: [0, 0],    worse: "below",   interpretation: "Not available" },
-  { key: "turning_time",   name: "Turning Time (180°)",     unit: "s",          range: [0, 0],       worse: "above",   interpretation: "Not available" },
-  { key: "tug",            name: "Timed Up and Go (TUG)",   unit: "s",          range: [0, 0],      worse: "above",   interpretation: "Not available" },
+  { key: "stance_phase",   name: "Stance Phase",            unit: "%" },
+  { key: "swing_phase",    name: "Swing Phase",             unit: "%" },
+  { key: "double_support", name: "Double Support Time",     unit: "%" },
+  { key: "single_support", name: "Single Support Time",     unit: "%" },
+  { key: "arm_swing_sym",  name: "Arm Swing Symmetry",      unit: "%" },
+  { key: "walking_sym",    name: "Walking Symmetry Index",  unit: "%" },
+  { key: "stability",      name: "Gait Stability Index",    unit: "%" },
+  { key: "turning_time",   name: "Turning Time (180°)",     unit: "s" },
+  { key: "tug",            name: "Timed Up and Go (TUG)",   unit: "s" },
 ];
 
 /* -------------------- status + deviation -------------------- */
