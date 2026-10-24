@@ -116,6 +116,20 @@ function ValidationDatasetSection() {
                   value={voiceEval.specificity != null ? pct(voiceEval.specificity) : "Not available"}
                 />
               </div>
+              <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                <span>
+                  <span className="text-foreground/90">Samples:</span> {voiceEval.samples}
+                </span>
+                <span>
+                  <span className="text-foreground/90">Split:</span> 80/20 train/test,
+                  deterministic (fixed seed 42)
+                </span>
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                Evaluated on the public UCI Parkinson's voice dataset (small, imbalanced). High
+                recall with low specificity means many controls are flagged as positive. Not
+                clinical performance.
+              </p>
             </>
           ) : (
             <p className="mt-2 text-sm text-muted-foreground">
@@ -123,8 +137,8 @@ function ValidationDatasetSection() {
             </p>
           )}
           <div className="mt-4 border-t border-white/10 pt-3 text-sm text-muted-foreground">
-            <span className="text-foreground/90">Gait and facial:</span> Validation metrics will be
-            added after experimental evaluation.
+            <span className="text-foreground/90">Gait and facial:</span> not yet evaluated. No
+            accuracy figures are reported.
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             These are in-browser evaluation results on the research dataset — not clinical
