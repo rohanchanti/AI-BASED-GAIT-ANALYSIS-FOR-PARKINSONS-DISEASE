@@ -67,9 +67,11 @@ export async function analyzeVideoFile(
     });
 
     const resolved = await resolveVideoDuration(video);
-    const duration = resolved > 0 ? resolved : 4;
-    const width = video.videoWidth || 640;
-    const height = video.videoHeight || 360;
+    const duration = resolved;
+    if (!(duration > 0) || !Number.isFinite(duration)) throw new Error("Video duration is not available");
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    if (!(width > 0) || !(height > 0)) throw new Error("Video dimensions are not available");
 
     const canvas = document.createElement("canvas");
     canvas.width = TARGET_W;
@@ -110,9 +112,9 @@ export async function analyzeVideoFile(
     const lrSymmetry =
       leftSum + rightSum > 0
         ? 1 - Math.abs(leftSum - rightSum) / (leftSum + rightSum)
-        : 1;
+        : NaN;
     const verticalRatio =
-      leftSum + rightSum > 0 ? (topSum + bottomSum) / (leftSum + rightSum) : 1;
+      leftSum + rightSum > 0 ? (topSum + bottomSum) / (leftSum + rightSum) : NaN;
 
     const { periodSec, strength } = detectPeriod(energies, SAMPLE_FPS);
 

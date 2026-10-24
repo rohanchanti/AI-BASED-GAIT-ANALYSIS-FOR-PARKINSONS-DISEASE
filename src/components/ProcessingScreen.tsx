@@ -5,7 +5,7 @@ import { Activity, AlertTriangle, RotateCcw, X } from "lucide-react";
 import { analyzeVideoFile } from "@/lib/video-analyzer";
 import { runPoseGaitAnalysis } from "@/services/pose/gaitAnalysisService";
 import { persistPoseAnalysis, toStorable } from "@/lib/pose-session";
-import { analyzeFromMeasurements, generateMockAnalysis, type AnalysisResult } from "@/lib/mock-analysis";
+import { analysisFromEngine, unavailableGaitAnalysis, generateMockAnalysis, type AnalysisResult } from "@/lib/mock-analysis";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createAnalysisJob,
@@ -93,7 +93,8 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
             const created = await createAnalysisJob({ data: job.create });
             runIdRef.current = created.runId;
           }
-          const runId = runIdRef.current!;
+          const runId = runIdRef.current;
+          if (!runId) throw new Error("Analysis job is not available");
           const { path, token } = await createUploadUrl({ data: { runId } });
           await uploadWithRetry(path, token, file, (p) => !signal.aborted && setUploadPct(p), signal);
           setUploadPct(1);
@@ -122,7 +123,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
               void status({ status: "processing", stage, progress: p });
             }
           };
-          const measurements = await analyzeVideoFile(
+          await analyzeVideoFile(
             file,
             (p) => {
               if (!signal.aborted) setAnalysisPct(p * 0.3);
@@ -130,7 +131,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
             },
             signal,
           );
-          result = analyzeFromMeasurements(measurements, mode);
+          result = unavailableGaitAnalysis(mode);
           let pose;
           try {
             pose = await runPoseGaitAnalysis(
@@ -176,7 +177,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
             eventMethod: EVENT_METHOD,
           };
           try { sessionStorage.setItem("latestEngine", JSON.stringify(engine)); } catch { /* ignore */ }
-          result = { ...result, qualityScore: pose.quality?.overall ?? null };
+          result = { ...analysisFromEngine(engine, mode), qualityScore: pose.quality?.overall ?? null };
           warnings.push(...assessment.issues);
           if (runIdRef.current)
             await saveJobResults({

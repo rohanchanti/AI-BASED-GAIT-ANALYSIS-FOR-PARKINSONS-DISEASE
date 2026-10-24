@@ -76,17 +76,8 @@ export function calibrationFromSubjectHeight(
   subjectHeightMeters: number,
   threshold: number,
 ): CalibrationInfo {
-  const span = subjectPixelHeight(frames, threshold);
-  if (span == null || !(subjectHeightMeters > 0.5)) return NO_CALIBRATION;
-  // nose→ankle is ~0.936 of standing height (nose sits below the vertex).
-  const NOSE_TO_ANKLE_FRACTION = 0.936;
-  return {
-    source: "subject-height",
-    metersPerUnit: (subjectHeightMeters * NOSE_TO_ANKLE_FRACTION) / span,
-    estimated: true,
-    note:
-      "Scale estimated from the subject's stated standing height and the tracked head-to-ankle span. Perspective and posture add error; treat distances as estimates.",
-  };
+  // Standing height does not supply a measured nose-to-ankle scale.
+  return NO_CALIBRATION;
 }
 
 /** Converts a normalized-image distance to metres, or null when uncalibrated. */
