@@ -77,24 +77,12 @@ export function UploadZone({ onDetected }: Props) {
           <div className="text-xs text-muted-foreground">or drop file anywhere in this card</div>
         </div>
 
-        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto text-left">
+        <div className="mt-8 grid grid-cols-1 gap-3 max-w-xl mx-auto text-left">
           <div className="rounded-xl border border-border/60 p-3 flex items-center gap-3">
             <Video className="h-5 w-5 text-cyan shrink-0" />
             <div className="min-w-0">
               <div className="text-sm font-medium">Walking video</div>
               <div className="text-xs text-muted-foreground truncate">Gait, stride & pose analysis</div>
-            </div>
-          </div>
-          <div className="rounded-xl border border-border/60 p-3 flex items-center gap-3">
-            <ImageIcon className="h-5 w-5 text-purple shrink-0" />
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                Facial image
-                <span className="rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-warning">
-                  Demo
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground truncate">PNG or JPG · example results only</div>
             </div>
           </div>
         </div>
