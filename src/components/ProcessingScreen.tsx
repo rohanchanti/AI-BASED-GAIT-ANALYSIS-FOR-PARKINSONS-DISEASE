@@ -11,6 +11,7 @@ import {
   createAnalysisJob,
   createUploadUrl,
   verifyUpload,
+  discardFailedUpload as discardUpload,
   updateJobStatus,
   saveJobResults,
   type CreateJobInput,
@@ -95,11 +96,21 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           }
           const runId = runIdRef.current;
           if (!runId) throw new Error("Analysis job is not available");
-          const { path, token } = await createUploadUrl({ data: { runId } });
-          await uploadWithRetry(path, token, file, (p) => !signal.aborted && setUploadPct(p), signal);
+          const discard = async (reason: string) => {
+            runIdRef.current = null;
+            try { await discardUpload({ data: { runId, reason } }); } catch { /* best effort */ }
+          };
+          try {
+            const { path, token } = await createUploadUrl({ data: { runId } });
+            await uploadWithRetry(path, token, file, (p) => !signal.aborted && setUploadPct(p), signal);
+          } catch (e) {
+            await discard(signal.aborted ? "cancelled" : e instanceof Error ? e.message : "upload failed");
+            throw e;
+          }
           setUploadPct(1);
           const v = await verifyUpload({ data: { runId } });
           if (!v.ok) {
+            await discard(v.error);
             setFailure({ message: v.error, issues: [], retryable: false });
             setPhase("failed");
             return;

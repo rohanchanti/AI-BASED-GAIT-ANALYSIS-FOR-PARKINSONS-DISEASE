@@ -66,12 +66,12 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
     }
 
     const s = data.subject;
-    let visit: { id: string };
+    let visit: { id: string; subject_id: string };
     if (data.visitId) {
-      const { data: v, error: vErr } = await supabase.from("visits").select("id, status").eq("id", data.visitId).eq("owner_id", userId).maybeSingle();
+      const { data: v, error: vErr } = await supabase.from("visits").select("id, status, subject_id").eq("id", data.visitId).eq("owner_id", userId).maybeSingle();
       if (vErr || !v) throw new Error("Visit not found or not accessible.");
       if (v.status === "closed") throw new Error("This visit is closed; start a new visit to record again.");
-      visit = { id: v.id };
+      visit = { id: v.id, subject_id: v.subject_id };
     } else {
     const subjectQuery = data.subjectRecordId
       ? supabase.from("subjects").select("id").eq("id", data.subjectRecordId).eq("owner_id", userId).eq("subject_code", s.subjectId.trim()).single()
@@ -88,7 +88,7 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
     const { data: nv, error: ve } = await supabase
       .from("visits")
       .insert({ owner_id: userId, subject_id: subj.id, recording_condition: s.recordingCondition.trim(), notes: s.notes.trim(), consent_id: data.consentId ?? null })
-      .select("id")
+      .select("id, subject_id")
       .single();
     if (ve) throw new Error(ve.message);
     visit = nv;
@@ -101,6 +101,7 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
       .insert({
         owner_id: userId,
         visit_id: visit.id,
+        subject_id: visit.subject_id,
         source: data.source,
         modality: "gait",
         original_filename: data.file.name,
@@ -299,6 +300,26 @@ export const saveJobResults = createServerFn({ method: "POST" })
         updated_at: now,
       })
       .eq("id", run.id);
+    return { ok: true };
+  });
+
+/** Removes the run, recording row and any stored object when an upload fails or is cancelled before verification. */
+export const discardFailedUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ runId: z.string().uuid(), reason: z.string().max(500).optional() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: run } = await supabase.from("analysis_runs").select("id, recording_id, status, recordings(storage_path)").eq("id", data.runId).eq("owner_id", userId).maybeSingle();
+    if (!run) return { ok: true };
+    const { count } = await supabase.from("gait_results").select("id", { count: "exact", head: true }).eq("run_id", run.id);
+    if (count) throw new Error("This recording already has results and cannot be discarded.");
+    const path = (run as unknown as { recordings: { storage_path: string | null } | null }).recordings?.storage_path;
+    if (path) await supabase.storage.from(BUCKET).remove([path]);
+    const { error: de } = await supabase.from("analysis_runs").delete().eq("id", run.id);
+    if (de) throw new Error(de.message);
+    const { error: re } = await supabase.from("recordings").delete().eq("id", run.recording_id);
+    if (re) throw new Error(re.message);
+    await supabase.from("audit_log").insert({ actor_id: userId, action: "upload_discarded", entity: "recordings", entity_id: run.recording_id, details: { run_id: run.id, reason: data.reason ?? null } });
     return { ok: true };
   });
 
