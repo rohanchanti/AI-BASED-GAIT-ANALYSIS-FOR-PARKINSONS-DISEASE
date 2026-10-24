@@ -549,7 +549,7 @@ export type Database = {
         Row: {
           age: number | null
           analysis_run_id: string | null
-          confidence: number
+          confidence: number | null
           created_at: string
           gender: string | null
           id: string
@@ -558,14 +558,14 @@ export type Database = {
           mode: string
           parameters: Json
           patient_name: string | null
-          probability: number
+          probability: number | null
           risk_level: string
           user_id: string
         }
         Insert: {
           age?: number | null
           analysis_run_id?: string | null
-          confidence: number
+          confidence?: number | null
           created_at?: string
           gender?: string | null
           id?: string
@@ -574,14 +574,14 @@ export type Database = {
           mode: string
           parameters?: Json
           patient_name?: string | null
-          probability: number
+          probability?: number | null
           risk_level: string
           user_id: string
         }
         Update: {
           age?: number | null
           analysis_run_id?: string | null
-          confidence?: number
+          confidence?: number | null
           created_at?: string
           gender?: string | null
           id?: string
@@ -590,7 +590,7 @@ export type Database = {
           mode?: string
           parameters?: Json
           patient_name?: string | null
-          probability?: number
+          probability?: number | null
           risk_level?: string
           user_id?: string
         }
