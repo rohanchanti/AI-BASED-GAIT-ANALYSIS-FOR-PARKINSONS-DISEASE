@@ -46,6 +46,12 @@ const MAX_SECONDS = VIDEO_LIMITS.maxRecordSeconds;
 const UNSUPPORTED_MSG = "Live camera recording is not supported by this browser. Please upload a video instead.";
 const DENIED_MSG = "Camera access was denied. Please allow camera permission in your browser settings.";
 const NO_RECORDER_MSG = "Video recording is not supported by this browser. Please upload a video instead.";
+type CamIssue = "denied" | "notfound" | "unsupported";
+const CAM_ISSUES: Record<CamIssue, { title: string; next: string }> = {
+  denied: { title: "Camera permission was denied.", next: "Click the camera or lock icon in your browser's address bar, allow camera access for this site, then press Try again." },
+  notfound: { title: "No camera was found on this device.", next: "Connect a webcam (or check it is switched on and not disabled), then press Try again — or upload a recorded video." },
+  unsupported: { title: "This browser can't record from the camera.", next: "Open this page in a recent version of Chrome, Edge, Firefox or Safari over a secure (https) connection, or upload a recorded video." },
+};
 
 const GUIDELINES = [
   "Place the camera at approximately waist/hip height.",
@@ -184,14 +190,9 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
       setFacing(face);
     }
     setError(null);
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setUnsupported(true);
-      setError(UNSUPPORTED_MSG);
-      return;
-    }
-    if (typeof MediaRecorder === "undefined") {
-      setUnsupported(true);
-      setError(NO_RECORDER_MSG);
+    setCamIssue(null);
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setCamIssue("unsupported");
       return;
     }
     stopCamera();
@@ -215,15 +216,10 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
       }
     } catch (e) {
       const name = (e as DOMException)?.name;
-      setError(
-        name === "NotFoundError" || name === "OverconstrainedError"
-          ? "No camera was detected on this device."
-          : name === "NotReadableError"
-            ? "The camera is in use by another app or could not be started."
-            : name === "SecurityError" || !window.isSecureContext
-              ? "Camera access requires a secure (HTTPS) connection."
-              : DENIED_MSG,
-      );
+      if (name === "NotFoundError" || name === "OverconstrainedError" || name === "DevicesNotFoundError") setCamIssue("notfound");
+      else if (name === "NotAllowedError" || name === "PermissionDeniedError") setCamIssue("denied");
+      else if (name === "SecurityError" || !window.isSecureContext) setCamIssue("unsupported");
+      else setError(name === "NotReadableError" ? "The camera is in use by another app or could not be started. Close other apps using the camera, then try again." : DENIED_MSG);
     } finally {
       setRequesting(false);
     }
@@ -507,6 +503,17 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
                     <div className="grid h-full place-items-center p-4 text-center text-sm text-muted-foreground">
                       {requesting ? (
                         <div className="animate-pulse">Requesting camera permission…</div>
+                      ) : camIssue ? (
+                        <div role="alert" className="max-w-sm">
+                          <div className="font-medium text-foreground">{CAM_ISSUES[camIssue].title}</div>
+                          <p className="mt-1">{CAM_ISSUES[camIssue].next}</p>
+                          <div className="mt-3 flex flex-wrap justify-center gap-2">
+                            {camIssue !== "unsupported" && (
+                              <button type="button" onClick={() => void startCamera()} className="rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary">Try again</button>
+                            )}
+                            <button type="button" onClick={() => { setCamIssue(null); setError(null); setMode("upload"); }} className="rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground">Upload a video instead</button>
+                          </div>
+                        </div>
                       ) : unsupported ? (
                         <div>{UNSUPPORTED_MSG}</div>
                       ) : (
