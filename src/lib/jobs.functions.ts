@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { validateSubjectFields } from "@/lib/subject-validation";
 import { subjectInformationSchema, ACQUISITION_CONSENT_VERSION } from "@/lib/subject-information";
-import { VIDEO_LIMITS, ALLOWED_MIME, sniffContainer, canTransition, PROTOCOLS, type JobStatus } from "@/lib/video-config";
+import { VIDEO_LIMITS, ALLOWED_MIME, sniffContainer, canTransition, PROTOCOLS, SUCCESS_STATUSES, type JobStatus } from "@/lib/video-config";
 
 const BUCKET = "recordings";
 
@@ -359,6 +359,8 @@ export const getJobResult = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ runId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    const { data: run } = await context.supabase.from("analysis_runs").select("status").eq("id", data.runId).maybeSingle();
+    if (!run || !SUCCESS_STATUSES.includes(run.status)) return null;
     const { data: r, error } = await context.supabase
       .from("gait_results")
       .select("result_payload, pose_metrics, quality, validation, events, engine_output")

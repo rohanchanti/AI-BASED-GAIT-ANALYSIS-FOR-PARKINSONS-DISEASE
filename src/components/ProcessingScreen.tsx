@@ -57,7 +57,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
   const [uploadPct, setUploadPct] = useState(0);
   const [analysisPct, setAnalysisPct] = useState(0);
   const [phase, setPhase] = useState<Phase>("upload");
-  const [failure, setFailure] = useState<{ message: string; issues: QualityIssue[]; retryable: boolean } | null>(null);
+  const [failure, setFailure] = useState<{ message: string; issues: QualityIssue[]; retryable: boolean; status?: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const ctrlRef = useRef<AbortController | null>(null);
@@ -311,7 +311,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
               <Activity className="h-10 w-10 text-cyan animate-pulse" />
             </div>
             <div className="mt-8 font-display text-5xl font-bold gradient-text">{Math.round(pct * 100)}%</div>
-            <div className="mt-2 text-sm text-muted-foreground">{phase === "upload" ? "Uploading video…" : "Analysis in progress"}</div>
+            <div className="mt-2 text-sm text-muted-foreground">{phase === "upload" ? "Uploading video…" : "Analysis in progress"} · Status: {phase === "upload" ? STATUS_LABEL.uploading : STATUS_LABEL.processing}</div>
             <div className="mt-6 h-2.5 w-full overflow-hidden rounded-full bg-white/5">
               <div className="h-full rounded-full bg-gradient-to-r from-primary via-cyan to-purple transition-[width] duration-150 glow-primary" style={{ width: `${pct * 100}%` }} />
             </div>
