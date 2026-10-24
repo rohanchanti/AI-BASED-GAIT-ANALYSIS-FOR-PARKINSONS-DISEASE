@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { validateSubjectFields } from "@/lib/subject-validation";
-import { subjectInformationSchema } from "@/lib/subject-information";
+import { subjectInformationSchema, ACQUISITION_CONSENT_VERSION } from "@/lib/subject-information";
 import { VIDEO_LIMITS, ALLOWED_MIME, sniffContainer, canTransition, PROTOCOLS, type JobStatus } from "@/lib/video-config";
 
 const BUCKET = "recordings";
@@ -28,6 +28,7 @@ const createInput = z.object({
   /** Attach the recording to an existing visit (clinical/research workspaces) instead of creating one. */
   visitId: z.string().uuid().optional(),
   subjectRecordId: z.string().uuid().optional(),
+  consentId: z.string().uuid().optional(),
 });
 
 /** Idempotent: the same sessionKey returns the existing job instead of creating a duplicate. */
@@ -36,11 +37,18 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => createInput.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    if (data.subjectRecordId) subjectInformationSchema.parse({
+    if (data.subjectRecordId) {
+      subjectInformationSchema.parse({
       subjectName: data.subject.name, subjectId: data.subject.subjectId,
       age: data.subject.age, sex: data.subject.sex,
       condition: data.subject.recordingCondition, notes: data.subject.notes,
-    });
+      });
+      if (!data.consentId) throw new Error("Consent is required before analysis.");
+      const { data: consent, error } = await supabase.from("consents").select("id")
+        .eq("id", data.consentId).eq("owner_id", userId).eq("subject_id", data.subjectRecordId)
+        .eq("consent_type", "media_storage").eq("granted", true).eq("document_version", ACQUISITION_CONSENT_VERSION).is("withdrawn_at", null).single();
+      if (error || !consent) throw new Error("Valid recording consent is required before analysis.");
+    }
     const errs = validateSubjectFields(data.subject);
     if (Object.keys(errs).length) throw new Error("Subject information is incomplete or invalid.");
     if (data.file.size > VIDEO_LIMITS.maxBytes) throw new Error("File exceeds the upload size limit.");
@@ -79,7 +87,7 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
     if (se || !subj) throw new Error("Subject could not be verified.");
     const { data: nv, error: ve } = await supabase
       .from("visits")
-      .insert({ owner_id: userId, subject_id: subj.id, recording_condition: s.recordingCondition.trim(), notes: s.notes.trim() })
+      .insert({ owner_id: userId, subject_id: subj.id, recording_condition: s.recordingCondition.trim(), notes: s.notes.trim(), consent_id: data.consentId ?? null })
       .select("id")
       .single();
     if (ve) throw new Error(ve.message);

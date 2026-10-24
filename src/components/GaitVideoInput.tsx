@@ -1,7 +1,7 @@
 import { cloneElement as cloneEl, useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { subjectInformationSchema } from "@/lib/subject-information";
+import { subjectInformationSchema, ACQUISITION_CONSENT_TEXT, ACQUISITION_CONSENT_VERSION } from "@/lib/subject-information";
 import { saveSubjectInformation } from "@/lib/subject-information.functions";
 import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound, Pause, ClipboardList } from "lucide-react";
 import { ACCEPT_ATTR, checkVideoFile, PROTOCOLS, protocolById, VIDEO_LIMITS, type ProtocolId } from "@/lib/video-config";
@@ -22,6 +22,7 @@ const FIELD_ORDER: (keyof SubjectInfo)[] = ["subjectName", "subjectId", "age", "
 
 export interface RecordingMeta {
   subjectRecordId?: string;
+  consentId?: string;
   protocol: ProtocolId;
   trialNumber: number;
   walkingDistanceM: number | null;
@@ -62,7 +63,9 @@ const inputCls =
 export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
   const saveSubject = useServerFn(saveSubjectInformation);
   const submittingRef = useRef(false);
-  const savedSubjectRef = useRef<{ id: string; subject: string } | null>(null);
+  const savedSubjectRef = useRef<{ id: string; subject: string; consentId?: string } | null>(null);
+  const [consentGranted, setConsentGranted] = useState(false);
+  const [consentError, setConsentError] = useState<string | null>(null);
   const [protocol, setProtocol] = useState<ProtocolId>("straight");
   const [trial, setTrial] = useState("1");
   const [distance, setDistance] = useState("");
@@ -332,6 +335,7 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
 
   async function analyze() {
     if (!video || submitted || busy || submittingRef.current) return;
+    if (!consentGranted) { setConsentError("Consent is required before analysis."); return; }
     const parsed = subjectSchema.safeParse(subject);
     if (!parsed.success) {
       const errs: Partial<Record<keyof SubjectInfo, string>> = {};
@@ -353,13 +357,22 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
     setSubmitted(true);
     submittingRef.current = true;
     let subjectRecordId: string;
+    let consentId: string;
     try {
       const fingerprint = JSON.stringify(parsed.data);
       const previous = savedSubjectRef.current;
-      if (previous?.subject === fingerprint) subjectRecordId = previous.id;
+      if (previous?.subject === fingerprint && previous.consentId) {
+        subjectRecordId = previous.id;
+        consentId = previous.consentId;
+      }
       else {
-        const saved = await saveSubject({ data: { subject: parsed.data, visitId } });
+        const saved = await saveSubject({ data: {
+          subject: parsed.data, visitId,
+          subjectRecordId: previous?.subject === fingerprint ? previous.id : undefined,
+          consent: { granted: true, version: ACQUISITION_CONSENT_VERSION },
+        } });
         if (!saved.success) {
+          if ("subjectRecordId" in saved && saved.subjectRecordId) savedSubjectRef.current = { id: saved.subjectRecordId, subject: fingerprint };
           if (saved.field) {
             setFieldErrors({ [saved.field]: saved.message });
             fieldRefs.current[saved.field]?.focus();
@@ -369,8 +382,9 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
           return;
         }
         subjectRecordId = saved.subjectRecordId;
-        savedSubjectRef.current = { id: subjectRecordId, subject: fingerprint };
-        toast.success("Subject information saved.");
+        consentId = saved.consentId;
+        savedSubjectRef.current = { id: subjectRecordId, subject: fingerprint, consentId };
+        toast.success("Subject information and consent saved.");
       }
     } catch {
       const message = "Subject information could not be saved. Please sign in and try again.";
@@ -382,7 +396,7 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
     stopCamera();
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     onAnalyze({ file: video.file, kind: "gait", previewUrl: video.url }, parsed.data as SubjectInfo, {
-      subjectRecordId, protocol, trialNumber: t, walkingDistanceM: dist, deviations, source: mode,
+      subjectRecordId, consentId, protocol, trialNumber: t, walkingDistanceM: dist, deviations, source: mode,
     });
   }
 
@@ -616,7 +630,16 @@ export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
             Only upload or record subjects with appropriate consent. Video data should be handled according to your institutional and research requirements.
           </div>
 
-          <button type="button" disabled={!video || recording || !videoValid || (mode === "live" && !confirmed) || submitted || busy} onClick={analyze} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground glow-primary hover:brightness-110 disabled:opacity-50">
+          <div className="text-xs text-muted-foreground">
+            <label className="flex items-start gap-2" htmlFor="subject-consent">
+              <input id="subject-consent" type="checkbox" required checked={consentGranted} aria-invalid={!!consentError} aria-describedby="subject-consent-version" onChange={(e) => { setConsentGranted(e.target.checked); setConsentError(null); }} className="mt-0.5 h-4 w-4 shrink-0 accent-primary" />
+              <span>{ACQUISITION_CONSENT_TEXT} <span className="text-destructive">*</span></span>
+            </label>
+            <p id="subject-consent-version" className="mt-1">Consent version: {ACQUISITION_CONSENT_VERSION}</p>
+            {consentError && <p className="mt-1 text-destructive">{consentError}</p>}
+          </div>
+
+          <button type="button" disabled={!consentGranted || !video || recording || !videoValid || (mode === "live" && !confirmed) || submitted || busy} onClick={analyze} className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground glow-primary hover:brightness-110 disabled:opacity-50">
             <Play className="h-4 w-4" /> {mode === "live" ? "Analyze Recording" : "Analyze Video"}
           </button>
         </div>

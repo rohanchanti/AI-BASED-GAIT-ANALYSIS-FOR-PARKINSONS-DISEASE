@@ -153,6 +153,7 @@ function LandingPage() {
             sessionKey: crypto.randomUUID(),
             ...(visitId && linked ? { visitId } : {}),
             subjectRecordId: meta.subjectRecordId,
+            consentId: meta.consentId,
             subject: { name: s.subjectName, subjectId: s.subjectId, age: s.age, sex: s.sex, recordingCondition: s.condition, notes: s.notes },
             protocol: proto.id,
             trialNumber: meta.trialNumber,
