@@ -1,5 +1,8 @@
 import { cloneElement as cloneEl, useEffect, useRef, useState } from "react";
-import { z } from "zod";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { subjectInformationSchema } from "@/lib/subject-information";
+import { saveSubjectInformation } from "@/lib/subject-information.functions";
 import { Video, FolderOpen, Circle, Square, RotateCcw, Play, X, ShieldCheck, Check, UserRound, Pause, ClipboardList } from "lucide-react";
 import { ACCEPT_ATTR, checkVideoFile, PROTOCOLS, protocolById, VIDEO_LIMITS, type ProtocolId } from "@/lib/video-config";
 import type { DetectedFile } from "@/components/UploadZone";
@@ -13,24 +16,12 @@ export type SubjectInfo = {
   notes: string;
 };
 
-const req = "This field is required.";
-export const subjectSchema = z.object({
-  subjectName: z.string().trim().min(1, req).max(100, "Must be under 100 characters."),
-  subjectId: z.string().trim().min(1, req).max(50, "Must be under 50 characters."),
-  age: z
-    .string()
-    .trim()
-    .min(1, req)
-    .regex(/^\d{1,3}$/, "Enter a whole number between 1 and 120.")
-    .refine((v) => Number(v) >= 1 && Number(v) <= 120, "Enter a whole number between 1 and 120."),
-  sex: z.enum(["Male", "Female", "Other", "Prefer not to say"], { message: req }),
-  condition: z.string().trim().min(1, req).max(200, "Must be under 200 characters."),
-  notes: z.string().trim().min(1, req).max(1000, "Must be under 1000 characters."),
-});
+export const subjectSchema = subjectInformationSchema;
 
 const FIELD_ORDER: (keyof SubjectInfo)[] = ["subjectName", "subjectId", "age", "sex", "condition", "notes"];
 
 export interface RecordingMeta {
+  subjectRecordId?: string;
   protocol: ProtocolId;
   trialNumber: number;
   walkingDistanceM: number | null;
@@ -41,6 +32,7 @@ export interface RecordingMeta {
 interface Props {
   /** Pre-filled subject/protocol from an existing visit; fields stay editable but are shown as linked. */
   initial?: { subject: SubjectInfo; protocol?: ProtocolId; label?: string };
+  visitId?: string;
   onAnalyze: (d: DetectedFile, subject: SubjectInfo, meta: RecordingMeta) => void;
   busy?: boolean;
 }
@@ -67,7 +59,10 @@ const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${Str
 const inputCls =
   "mt-1 w-full rounded-lg border border-border bg-background/40 px-3 py-2 text-sm outline-none focus:border-primary";
 
-export function GaitVideoInput({ onAnalyze, busy, initial }: Props) {
+export function GaitVideoInput({ onAnalyze, busy, initial, visitId }: Props) {
+  const saveSubject = useServerFn(saveSubjectInformation);
+  const submittingRef = useRef(false);
+  const savedSubjectRef = useRef<{ id: string; subject: string } | null>(null);
   const [protocol, setProtocol] = useState<ProtocolId>("straight");
   const [trial, setTrial] = useState("1");
   const [distance, setDistance] = useState("");
@@ -335,8 +330,8 @@ export function GaitVideoInput({ onAnalyze, busy, initial }: Props) {
     setVideo({ file: f, url: URL.createObjectURL(f) });
   }
 
-  function analyze() {
-    if (!video || submitted || busy) return;
+  async function analyze() {
+    if (!video || submitted || busy || submittingRef.current) return;
     const parsed = subjectSchema.safeParse(subject);
     if (!parsed.success) {
       const errs: Partial<Record<keyof SubjectInfo, string>> = {};
@@ -347,6 +342,7 @@ export function GaitVideoInput({ onAnalyze, busy, initial }: Props) {
       setFieldErrors(errs);
       const first = FIELD_ORDER.find((k) => errs[k]);
       if (first) fieldRefs.current[first]?.focus();
+      toast.error("Please correct the subject information.");
       return;
     }
     const t = Number(trial);
@@ -355,10 +351,38 @@ export function GaitVideoInput({ onAnalyze, busy, initial }: Props) {
     if (dist != null && (!Number.isFinite(dist) || dist <= 0 || dist > 100)) { setError("Walking distance must be between 0 and 100 m, or left empty."); return; }
     if (video.duration != null && video.duration < VIDEO_LIMITS.minDurationSec) { setError(`The video is shorter than ${VIDEO_LIMITS.minDurationSec} seconds. Record several walking cycles.`); return; }
     setSubmitted(true);
+    submittingRef.current = true;
+    let subjectRecordId: string;
+    try {
+      const fingerprint = JSON.stringify(parsed.data);
+      const previous = savedSubjectRef.current;
+      if (previous?.subject === fingerprint) subjectRecordId = previous.id;
+      else {
+        const saved = await saveSubject({ data: { subject: parsed.data, visitId } });
+        if (!saved.success) {
+          if (saved.field) {
+            setFieldErrors({ [saved.field]: saved.message });
+            fieldRefs.current[saved.field]?.focus();
+          } else setError(saved.message);
+          toast.error(saved.message);
+          setSubmitted(false);
+          return;
+        }
+        subjectRecordId = saved.subjectRecordId;
+        savedSubjectRef.current = { id: subjectRecordId, subject: fingerprint };
+        toast.success("Subject information saved.");
+      }
+    } catch {
+      const message = "Subject information could not be saved. Please sign in and try again.";
+      setError(message);
+      toast.error(message);
+      setSubmitted(false);
+      return;
+    } finally { submittingRef.current = false; }
     stopCamera();
     try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
     onAnalyze({ file: video.file, kind: "gait", previewUrl: video.url }, parsed.data as SubjectInfo, {
-      protocol, trialNumber: t, walkingDistanceM: dist, deviations, source: mode,
+      subjectRecordId, protocol, trialNumber: t, walkingDistanceM: dist, deviations, source: mode,
     });
   }
 
@@ -368,12 +392,12 @@ export function GaitVideoInput({ onAnalyze, busy, initial }: Props) {
     return (
       <div className={`block ${span}`}>
         <label htmlFor={id} className="text-xs text-muted-foreground">
-          {label} <span className="text-destructive">*</span>
+          {label} {key !== "notes" && <span className="text-destructive">*</span>}
         </label>
         {cloneEl(control, {
           id,
-          required: true,
-          "aria-required": true,
+          required: key !== "notes",
+          "aria-required": key !== "notes",
           "aria-invalid": !!err,
           "aria-describedby": err ? `${id}-err` : undefined,
           ref: (el: HTMLElement | null) => {
@@ -575,15 +599,15 @@ export function GaitVideoInput({ onAnalyze, busy, initial }: Props) {
             </legend>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {field("subjectName", "Subject Name", "", <input type="text" className={inputCls} value={subject.subjectName} onChange={(e) => setSubject({ ...subject, subjectName: e.target.value })} placeholder="e.g. John Doe" maxLength={100} />)}
-              {field("subjectId", "Subject ID", "", <input type="text" className={inputCls} value={subject.subjectId} onChange={(e) => setSubject({ ...subject, subjectId: e.target.value })} placeholder="e.g. S-014" maxLength={50} />)}
-              {field("age", "Age", "", <input type="text" inputMode="numeric" className={inputCls} value={subject.age} onChange={(e) => setSubject({ ...subject, age: e.target.value.replace(/\D/g, "").slice(0, 3) })} placeholder="1–120" />)}
+              {field("subjectId", "Participant ID", "", <input type="text" className={inputCls} value={subject.subjectId} onChange={(e) => setSubject({ ...subject, subjectId: e.target.value })} placeholder="e.g. S-014" maxLength={50} />)}
+              {field("age", "Age", "", <input type="text" inputMode="numeric" className={inputCls} value={subject.age} onChange={(e) => setSubject({ ...subject, age: e.target.value.replace(/\D/g, "").slice(0, 3) })} placeholder="18–110" />)}
               {field("sex", "Sex", "sm:col-span-3", (
                 <select className={inputCls} value={subject.sex} onChange={(e) => setSubject({ ...subject, sex: e.target.value })}>
                   <option value="" disabled>Select…</option><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option><option value="Prefer not to say">Prefer not to say</option>
                 </select>
               ))}
               {field("condition", "Recording Condition", "sm:col-span-3", <input type="text" className={inputCls} value={subject.condition} onChange={(e) => setSubject({ ...subject, condition: e.target.value })} placeholder="e.g. indoor corridor, self-selected walking pace" maxLength={200} />)}
-              {field("notes", "Notes", "sm:col-span-3", <textarea rows={2} className={inputCls} value={subject.notes} onChange={(e) => setSubject({ ...subject, notes: e.target.value })} placeholder="Enter relevant observations or recording notes" maxLength={1000} />)}
+              {field("notes", "Notes (optional)", "sm:col-span-3", <textarea rows={2} className={inputCls} value={subject.notes} onChange={(e) => setSubject({ ...subject, notes: e.target.value })} placeholder="Enter relevant observations or recording notes" maxLength={1000} />)}
             </div>
           </fieldset>
 

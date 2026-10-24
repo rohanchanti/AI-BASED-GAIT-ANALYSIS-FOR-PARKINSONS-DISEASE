@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { validateSubjectFields } from "@/lib/subject-validation";
+import { subjectInformationSchema } from "@/lib/subject-information";
 import { VIDEO_LIMITS, ALLOWED_MIME, sniffContainer, canTransition, PROTOCOLS, type JobStatus } from "@/lib/video-config";
 
 const BUCKET = "recordings";
@@ -26,6 +27,7 @@ const createInput = z.object({
   analysisCode: z.string().max(40).optional(),
   /** Attach the recording to an existing visit (clinical/research workspaces) instead of creating one. */
   visitId: z.string().uuid().optional(),
+  subjectRecordId: z.string().uuid().optional(),
 });
 
 /** Idempotent: the same sessionKey returns the existing job instead of creating a duplicate. */
@@ -34,6 +36,11 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => createInput.parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    if (data.subjectRecordId) subjectInformationSchema.parse({
+      subjectName: data.subject.name, subjectId: data.subject.subjectId,
+      age: data.subject.age, sex: data.subject.sex,
+      condition: data.subject.recordingCondition, notes: data.subject.notes,
+    });
     const errs = validateSubjectFields(data.subject);
     if (Object.keys(errs).length) throw new Error("Subject information is incomplete or invalid.");
     if (data.file.size > VIDEO_LIMITS.maxBytes) throw new Error("File exceeds the upload size limit.");
@@ -58,7 +65,9 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
       if (v.status === "closed") throw new Error("This visit is closed; start a new visit to record again.");
       visit = { id: v.id };
     } else {
-    const { data: subj, error: se } = await supabase
+    const subjectQuery = data.subjectRecordId
+      ? supabase.from("subjects").select("id").eq("id", data.subjectRecordId).eq("owner_id", userId).eq("subject_code", s.subjectId.trim()).single()
+      : supabase
       .from("subjects")
       .upsert(
         { owner_id: userId, subject_code: s.subjectId.trim(), display_name: s.name.trim(), age: Number(s.age), sex: s.sex },
@@ -66,7 +75,8 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
       )
       .select("id")
       .single();
-    if (se) throw new Error(se.message);
+    const { data: subj, error: se } = await subjectQuery;
+    if (se || !subj) throw new Error("Subject could not be verified.");
     const { data: nv, error: ve } = await supabase
       .from("visits")
       .insert({ owner_id: userId, subject_id: subj.id, recording_condition: s.recordingCondition.trim(), notes: s.notes.trim() })

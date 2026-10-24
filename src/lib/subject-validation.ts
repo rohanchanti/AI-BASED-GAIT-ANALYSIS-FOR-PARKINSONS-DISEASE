@@ -23,6 +23,6 @@ export function validateSubjectFields(f: SubjectFields): Partial<Record<keyof Su
   else if (!Number.isInteger(age) || age < 0 || age > 150) e.age = "Enter a whole number between 0 and 150.";
   if (!f.sex.trim()) e.sex = req;
   if (!f.recordingCondition.trim()) e.recordingCondition = req;
-  if (!f.notes.trim()) e.notes = req;
+  if (f.notes.length > 1000) e.notes = "Use 1000 characters or fewer.";
   return e;
 }
