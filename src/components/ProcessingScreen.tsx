@@ -18,7 +18,7 @@ import {
   type JobStatusUpdate,
 } from "@/lib/jobs.functions";
 import { uploadWithRetry, assessRecording, UploadCancelled } from "@/lib/job-runner";
-import { protocolById, type QualityIssue } from "@/lib/video-config";
+import { protocolById, STATUS_LABEL, type QualityIssue } from "@/lib/video-config";
 import { computeGaitParameters, EVENT_METHOD } from "@/lib/gait-engine/parameters";
 import { serializeFrames, qualitySummary } from "@/lib/gait-engine/frames";
 
@@ -176,8 +176,8 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           if (assessment.status === "fail") {
             persistPoseAnalysis(null);
             if (runIdRef.current)
-              await saveJobResults({ data: { runId: runIdRef.current, status: "failed", qualityReport, protocolChecks: assessment.checks, video, error: "Recording did not meet minimum data quality." } });
-            setFailure({ message: "The recording does not meet the minimum quality needed for reliable gait measurements.", issues: assessment.issues, retryable: false });
+              await saveJobResults({ data: { runId: runIdRef.current, status: "needs_better_video", qualityReport, protocolChecks: assessment.checks, video, error: "Recording did not meet minimum data quality." } });
+            setFailure({ status: "needs_better_video", message: "The recording does not meet the minimum quality needed for reliable gait measurements. Please record a new video.", issues: assessment.issues, retryable: false });
             setPhase("failed");
             return;
           }
@@ -281,6 +281,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
             <div className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
               <span className="font-medium">Analysis could not be completed</span>
+              <span className="ml-auto rounded-full border border-destructive/40 px-2 py-0.5 text-xs">Status: {STATUS_LABEL[failure.status ?? "failed"]}</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">{failure.message}</p>
             {failure.issues.length > 0 && (

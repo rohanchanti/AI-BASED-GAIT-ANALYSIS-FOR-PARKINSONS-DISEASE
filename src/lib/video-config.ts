@@ -55,18 +55,22 @@ export type JobStatus =
   | "completed"
   | "completed_with_warnings"
   | "failed"
+  | "needs_better_video"
   | "cancelled";
 
-export const TERMINAL: JobStatus[] = ["completed", "completed_with_warnings", "failed", "cancelled"];
+export const TERMINAL: JobStatus[] = ["completed", "completed_with_warnings", "failed", "needs_better_video", "cancelled"];
+/** Only these statuses may show measured results. */
+export const SUCCESS_STATUSES = ["completed", "completed_with_warnings", "complete"];
 
 const TRANSITIONS: Record<JobStatus, JobStatus[]> = {
   queued: ["uploading", "processing", "failed", "cancelled"],
   uploading: ["queued", "processing", "failed", "cancelled"],
-  processing: ["completed", "completed_with_warnings", "failed", "cancelled", "processing"],
+  processing: ["completed", "completed_with_warnings", "failed", "needs_better_video", "cancelled", "processing"],
   completed: [],
   completed_with_warnings: [],
   failed: ["queued", "processing"], // retry
   cancelled: ["queued", "processing"], // retry
+  needs_better_video: [], // a new recording is required
 };
 
 export function canTransition(from: string, to: JobStatus): boolean {
@@ -85,10 +89,11 @@ export const STATUS_LABEL: Record<string, string> = {
   uploading: "Uploading",
   processing: "Processing",
   running: "Processing",
-  completed: "Completed",
-  complete: "Completed",
+  completed: "Complete",
+  complete: "Complete",
   completed_with_warnings: "Completed with warnings",
   failed: "Failed",
+  needs_better_video: "Needs better video",
   cancelled: "Cancelled",
 };
 

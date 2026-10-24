@@ -195,7 +195,7 @@ export const verifyUpload = createServerFn({ method: "POST" })
     return { ok: true as const, container, size: total };
   });
 
-const statusEnum = z.enum(["queued", "uploading", "processing", "completed", "completed_with_warnings", "failed", "cancelled"]);
+const statusEnum = z.enum(["queued", "uploading", "processing", "completed", "completed_with_warnings", "failed", "needs_better_video", "cancelled"]);
 
 export const updateJobStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -227,7 +227,7 @@ export const updateJobStatus = createServerFn({ method: "POST" })
       patch.attempts = run.attempts + 1;
       patch.error_message = null;
     }
-    if (["completed", "completed_with_warnings", "failed", "cancelled"].includes(data.status)) patch.completed_at = now;
+    if (["completed", "completed_with_warnings", "failed", "needs_better_video", "cancelled"].includes(data.status)) patch.completed_at = now;
     const { error: ue } = await supabase.from("analysis_runs").update(patch).eq("id", data.runId);
     if (ue) throw new Error(ue.message);
     return { ok: true, status: data.status };
@@ -239,7 +239,7 @@ export const saveJobResults = createServerFn({ method: "POST" })
     z
       .object({
         runId: z.string().uuid(),
-        status: z.enum(["completed", "completed_with_warnings", "failed"]),
+        status: z.enum(["completed", "completed_with_warnings", "failed", "needs_better_video"]),
         qualityReport: z.any(),
         protocolChecks: z.array(z.object({ name: z.string(), result: z.string(), detail: z.string() })).max(20),
         video: z.object({ durationSec: z.number().nullable(), width: z.number().nullable(), height: z.number().nullable(), fps: z.number().nullable() }),
@@ -265,10 +265,10 @@ export const saveJobResults = createServerFn({ method: "POST" })
         height: data.video.height ? Math.round(data.video.height) : null,
         fps: data.video.fps,
         protocol_checks: data.protocolChecks,
-        processing_status: data.status === "failed" ? "failed" : "complete",
+        processing_status: data.status === "failed" || data.status === "needs_better_video" ? "failed" : "complete",
       })
       .eq("id", run.recording_id);
-    if (data.status !== "failed" && data.result) {
+    if ((data.status === "completed" || data.status === "completed_with_warnings") && data.result) {
       await supabase.from("gait_results").delete().eq("run_id", run.id);
       const { error: ge } = await supabase.from("gait_results").insert({
         owner_id: userId,
@@ -291,7 +291,7 @@ export const saveJobResults = createServerFn({ method: "POST" })
       .from("analysis_runs")
       .update({
         status: data.status,
-        stage: data.status === "failed" ? "quality_control" : "report_available",
+        stage: data.status === "failed" || data.status === "needs_better_video" ? "quality_control" : "report_available",
         progress: 1,
         quality_report: data.qualityReport,
         error_message: data.error ?? null,

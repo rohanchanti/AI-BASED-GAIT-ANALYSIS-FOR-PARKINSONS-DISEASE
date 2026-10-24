@@ -57,9 +57,9 @@ export function Notice({ children }: { children: ReactNode }) {
 
 export function StatusBadge({ status }: { status: string }) {
   const tone =
-    status === "completed" ? "bg-success/15 text-success" :
+    status === "completed" || status === "complete" ? "bg-success/15 text-success" :
     status === "completed_with_warnings" ? "bg-warning/15 text-warning" :
-    status === "failed" || status === "cancelled" ? "bg-destructive/15 text-destructive" :
+    status === "failed" || status === "cancelled" || status === "needs_better_video" ? "bg-destructive/15 text-destructive" :
     "bg-primary/15 text-cyan";
   return <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}>{(STATUS_LABEL as Record<string, string>)[status] ?? status.replace(/_/g, " ")}</span>;
 }
