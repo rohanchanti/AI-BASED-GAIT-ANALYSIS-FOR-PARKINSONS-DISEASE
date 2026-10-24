@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { UploadCloud, Video, ImageIcon } from "lucide-react";
+import { UploadCloud, Video } from "lucide-react";
 
 export type MediaKind = "gait" | "facial";
 export type DetectedFile = { file: File; kind: MediaKind; previewUrl: string };
