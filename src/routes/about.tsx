@@ -6,7 +6,7 @@ export const Route = createFileRoute("/about")({
       { title: "About · NeuroStride AI" },
       { name: "description", content: "A final-year engineering project combining biomedical engineering, deep learning and computer vision for early Parkinson's screening." },
       { property: "og:title", content: "About · NeuroStride AI" },
-      { property: "og:description", content: "A research prototype combining biomedical engineering and AI for Parkinson's screening." },
+      { property: "og:description", content: "A research prototype combining biomedical engineering and AI for movement assessment support and research." },
     ],
   }),
   component: AboutPage,

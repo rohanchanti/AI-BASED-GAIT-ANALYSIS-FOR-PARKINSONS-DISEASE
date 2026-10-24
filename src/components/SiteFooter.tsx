@@ -11,9 +11,8 @@ export function SiteFooter() {
             <span className="font-display font-semibold">Neuro<span className="gradient-text">Stride</span> AI</span>
           </div>
           <p className="mt-3 text-sm text-muted-foreground">
-            Research-grade Parkinson&apos;s screening from gait and facial video, powered by
-            computer vision and deep learning. For research and educational use only —
-            not a substitute for a clinical diagnosis.
+            NeuroStride AI is a research prototype for movement analysis. It is not a
+            validated diagnostic tool and does not provide medical advice.
           </p>
         </div>
         <div className="grid grid-cols-2 gap-8 text-sm">
