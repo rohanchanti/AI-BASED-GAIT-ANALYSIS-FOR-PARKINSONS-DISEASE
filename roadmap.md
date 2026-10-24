@@ -7,3 +7,5 @@
 - [x] Final integration: clinical CSV/JSON exports, consent/review defects fixed, E2E clinical/research/isolation/regression checks
 - [ ] Assign real clinician/researcher/admin roles (waiting on user)
 - [x] Remove listed mock gait values and verify missing-value handling; 53 automated checks and signed-in report checks passed.
+- [x] Connect the existing Subject Information form, optional Notes, age 18–110, inline validation and duplicate-ID rejection.
+- [x] Add required versioned consent to the same form; verified disabled analysis without consent, saved consent text/version, optional Notes and duplicate-ID errors; 61 tests passed.
