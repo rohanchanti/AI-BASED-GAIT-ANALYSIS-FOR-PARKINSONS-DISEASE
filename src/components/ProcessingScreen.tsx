@@ -18,7 +18,7 @@ import {
   type JobStatusUpdate,
 } from "@/lib/jobs.functions";
 import { uploadWithRetry, assessRecording, UploadCancelled } from "@/lib/job-runner";
-import { protocolById, type QualityIssue } from "@/lib/video-config";
+import { protocolById, STATUS_LABEL, type QualityIssue } from "@/lib/video-config";
 import { computeGaitParameters, EVENT_METHOD } from "@/lib/gait-engine/parameters";
 import { serializeFrames, qualitySummary } from "@/lib/gait-engine/frames";
 
@@ -57,7 +57,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
   const [uploadPct, setUploadPct] = useState(0);
   const [analysisPct, setAnalysisPct] = useState(0);
   const [phase, setPhase] = useState<Phase>("upload");
-  const [failure, setFailure] = useState<{ message: string; issues: QualityIssue[]; retryable: boolean } | null>(null);
+  const [failure, setFailure] = useState<{ message: string; issues: QualityIssue[]; retryable: boolean; status?: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const ctrlRef = useRef<AbortController | null>(null);
@@ -176,8 +176,8 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           if (assessment.status === "fail") {
             persistPoseAnalysis(null);
             if (runIdRef.current)
-              await saveJobResults({ data: { runId: runIdRef.current, status: "failed", qualityReport, protocolChecks: assessment.checks, video, error: "Recording did not meet minimum data quality." } });
-            setFailure({ message: "The recording does not meet the minimum quality needed for reliable gait measurements.", issues: assessment.issues, retryable: false });
+              await saveJobResults({ data: { runId: runIdRef.current, status: "needs_better_video", qualityReport, protocolChecks: assessment.checks, video, error: "Recording did not meet minimum data quality." } });
+            setFailure({ status: "needs_better_video", message: "The recording does not meet the minimum quality needed for reliable gait measurements. Please record a new video.", issues: assessment.issues, retryable: false });
             setPhase("failed");
             return;
           }
@@ -281,6 +281,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
             <div className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" />
               <span className="font-medium">Analysis could not be completed</span>
+              <span className="ml-auto rounded-full border border-destructive/40 px-2 py-0.5 text-xs">Status: {STATUS_LABEL[failure.status ?? "failed"]}</span>
             </div>
             <p className="mt-2 text-sm text-muted-foreground">{failure.message}</p>
             {failure.issues.length > 0 && (
@@ -310,7 +311,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
               <Activity className="h-10 w-10 text-cyan animate-pulse" />
             </div>
             <div className="mt-8 font-display text-5xl font-bold gradient-text">{Math.round(pct * 100)}%</div>
-            <div className="mt-2 text-sm text-muted-foreground">{phase === "upload" ? "Uploading video…" : "Analysis in progress"}</div>
+            <div className="mt-2 text-sm text-muted-foreground">{phase === "upload" ? "Uploading video…" : "Analysis in progress"} · Status: {phase === "upload" ? STATUS_LABEL.uploading : STATUS_LABEL.processing}</div>
             <div className="mt-6 h-2.5 w-full overflow-hidden rounded-full bg-white/5">
               <div className="h-full rounded-full bg-gradient-to-r from-primary via-cyan to-purple transition-[width] duration-150 glow-primary" style={{ width: `${pct * 100}%` }} />
             </div>

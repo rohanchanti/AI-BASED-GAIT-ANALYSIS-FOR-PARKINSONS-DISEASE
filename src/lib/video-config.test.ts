@@ -52,3 +52,14 @@ describe("protocol checks", () => {
     expect(c.find((x) => x.name.startsWith("Walking"))?.result).toBe("not_verified");
   });
 });
+
+import { SUCCESS_STATUSES as S, STATUS_LABEL as L } from "./video-config";
+describe("run status rules", () => {
+  it("failed and needs_better_video never count as success", () => {
+    expect(S).not.toContain("failed");
+    expect(S).not.toContain("needs_better_video");
+  });
+  it("processing can end as needs_better_video", () => expect(canTransition("processing", "needs_better_video")).toBe(true));
+  it("needs_better_video cannot be retried on the same video", () => expect(canTransition("needs_better_video", "queued")).toBe(false));
+  it("labels needs_better_video", () => expect(L.needs_better_video).toBe("Needs better video"));
+});

@@ -57,6 +57,13 @@
       "when": 1792862637336,
       "tag": "0007_recordings_subject_link",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792862727159,
+      "tag": "0008_analysis_runs_needs_better_video",
+      "breakpoints": true
     }
   ]
 }

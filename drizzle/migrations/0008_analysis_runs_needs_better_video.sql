@@ -1,0 +1,2 @@
+ALTER TABLE public.analysis_runs DROP CONSTRAINT analysis_runs_status_check;
+ALTER TABLE public.analysis_runs ADD CONSTRAINT analysis_runs_status_check CHECK (status = ANY (ARRAY['running','complete','failed','queued','uploading','processing','completed','completed_with_warnings','cancelled','needs_better_video']));

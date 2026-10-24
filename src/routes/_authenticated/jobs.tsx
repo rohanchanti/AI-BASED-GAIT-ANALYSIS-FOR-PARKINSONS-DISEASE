@@ -35,7 +35,7 @@ const tone = (s: string, stale: boolean) =>
       ? "border-success/40 text-success"
       : s === "completed_with_warnings"
         ? "border-cyan/40 text-cyan"
-        : s === "failed" || s === "cancelled"
+        : s === "failed" || s === "cancelled" || s === "needs_better_video"
           ? "border-destructive/40 text-destructive"
           : "border-primary/40 text-foreground";
 
