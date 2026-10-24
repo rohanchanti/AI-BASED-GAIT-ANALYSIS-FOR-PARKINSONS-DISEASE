@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Subject/visit/recording/run data lives in linked tables (subjects→visits→recordings→analysis_runs→gait_results); legacy `reports` rows link via analysis_run_id. Why: one subject can be followed over visits and reruns never overwrite history.
+- Acquisition Subject Information is validated by a shared browser/server schema and inserted before processing; jobs verify its owner-scoped subject ID rather than upserting it. Existing linked visits reuse their participant; duplicate new IDs are rejected by the owner/code unique constraint. Why: form submission must not overwrite an existing participant.
 - Researchers read data only via the coded `research_coded_results()` function, never the subjects table. Why: keeps identifiable names out of research access.
 - Gait video jobs: files go to the private `recordings` bucket via signed upload URLs, status lives on `analysis_runs` (queued→uploading→processing→completed/completed_with_warnings/failed/cancelled) and pose/gait compute runs in the browser. Why: the edge server cannot decode video or run MediaPipe; server keeps the durable state.
 - Upload limits, allowed formats, protocols and quality-gate thresholds live only in `src/lib/video-config.ts`. Why: one place to tune rules, shared by UI, server and tests.

@@ -315,7 +315,7 @@ function LandingPage() {
             {visitQ.isLoading ? "Loading linked visit…" : visitQ.error ? <span className="text-destructive">Linked visit could not be loaded: {(visitQ.error as Error).message}</span> : <>Recording for visit <b>{initial?.label}</b> — subject details are pre-filled from the visit. <Link to="/clinical/visits/$id" params={{ id: visitId }} className="text-cyan hover:underline">Back to visit</Link></>}
           </div>
         )}
-        <GaitVideoInput onAnalyze={onDetected} busy={stage === "processing"} initial={initial} />
+        <GaitVideoInput onAnalyze={onDetected} busy={stage === "processing"} initial={initial} visitId={visitId && linked ? visitId : undefined} />
         <UploadZone onDetected={(d) => onDetected(d)} />
       </section>
 
