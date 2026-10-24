@@ -289,7 +289,7 @@ function LandingPage() {
             </div>
 
             {/* Stat pills */}
-            <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+            <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto">
               {[
                 { k: "33", v: "tracked pose landmarks" },
                 { k: "5", v: "acquisition protocols" },
