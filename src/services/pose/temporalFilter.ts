@@ -250,7 +250,7 @@ export function preprocessPoseFrames(
       ...f,
       landmarks: landmarks.length ? landmarks : null,
       valid,
-      frameConfidence: confN ? confSum / confN : 0,
+      frameConfidence: confSum / GAIT_LANDMARKS.length,
       interpolated: interpolatedHere,
     };
   });

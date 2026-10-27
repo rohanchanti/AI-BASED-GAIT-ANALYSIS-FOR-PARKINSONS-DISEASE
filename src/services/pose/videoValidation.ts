@@ -8,6 +8,7 @@
 import type { PoseFrame, VideoInfo } from "@/types/pose";
 import type { AnalysisQuality, VideoValidationResult } from "@/types/gait";
 import type { PosePipelineConfig } from "./poseConfig";
+import { QUALITY_THRESHOLDS } from "@/lib/video-config";
 
 /** Cheap checks that only need container metadata (run before pose extraction). */
 export function validateVideoMetadata(
@@ -22,8 +23,8 @@ export function validateVideoMetadata(
   else if (info.durationSec < 1)
     blocking.push("The recording is too short to contain any walking activity.");
   else if (info.durationSec < cfg.minDurationSec)
-    warnings.push(
-      `Recording is ${info.durationSec.toFixed(1)}s; at least ${cfg.minDurationSec}s of walking is recommended.`,
+    blocking.push(
+      `Recording is ${info.durationSec.toFixed(1)}s; at least ${cfg.minDurationSec}s of walking is required.`,
     );
 
   if (!(info.width > 0) || !(info.height > 0))
@@ -45,6 +46,13 @@ export function validateAnalysis(
 ): VideoValidationResult {
   const blocking: string[] = [];
   const warnings: string[] = [...quality.warnings];
+
+  if (!Number.isFinite(quality.poseConfidence) || quality.poseConfidence / 100 < QUALITY_THRESHOLDS.minPoseConfidence)
+    blocking.push("Pose landmark confidence is too low. Improve lighting and record the full body clearly.");
+  if (!Number.isFinite(quality.bodyVisibilityScore) || quality.bodyVisibilityScore / 100 < QUALITY_THRESHOLDS.minBodyVisibility)
+    blocking.push("Full-body visibility is too low. Keep head, shoulders, legs and feet inside the frame.");
+  if (!Number.isFinite(quality.validCycles) || quality.validCycles < cfg.minGaitCycles)
+    blocking.push(`Only ${quality.validCycles} complete gait cycles detected; at least ${cfg.minGaitCycles} are required. Record a longer walk.`);
 
   const withPose = frames.filter((f) => f.landmarks != null).length;
   if (frames.length < 8)

@@ -9,7 +9,7 @@ import { GAIT_LANDMARKS, type PoseFrame, type VideoInfo } from "@/types/pose";
 import type { AnalysisQuality } from "@/types/gait";
 import type { PreprocessingReport } from "./temporalFilter";
 import type { PosePipelineConfig } from "./poseConfig";
-import { indexLandmarks } from "./poseLandmarkUtils";
+import { indexLandmarks, reliable } from "./poseLandmarkUtils";
 
 const UPPER_BODY = ["left_shoulder", "right_shoulder", "nose"] as const;
 
@@ -51,8 +51,12 @@ export function bodyVisibilityScore(frames: PoseFrame[], threshold: number): num
   let ok = 0;
   for (const f of frames) {
     const map = indexLandmarks(f.landmarks);
-    const lower = GAIT_LANDMARKS.every((n) => (map[n]?.visibility ?? 0) >= threshold);
-    const upper = UPPER_BODY.some((n) => (map[n]?.visibility ?? 0) >= threshold);
+    const visible = (n: (typeof GAIT_LANDMARKS)[number]) => {
+      const p = reliable(map, n, threshold);
+      return p != null && p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1;
+    };
+    const lower = GAIT_LANDMARKS.every(visible);
+    const upper = UPPER_BODY.every(visible);
     if (lower && upper) ok++;
   }
   return ok / frames.length;
@@ -68,9 +72,7 @@ export function computeAnalysisQuality(args: {
   const { frames, report, validCycles, info, cfg } = args;
   const warnings: string[] = [];
 
-  const confVals = frames
-    .map((f) => f.frameConfidence ?? 0)
-    .filter((v) => v > 0);
+  const confVals = frames.map((f) => Number.isFinite(f.frameConfidence) ? f.frameConfidence ?? 0 : 0);
   const poseConfidence = confVals.length
     ? confVals.reduce((a, b) => a + b, 0) / confVals.length
     : 0;
