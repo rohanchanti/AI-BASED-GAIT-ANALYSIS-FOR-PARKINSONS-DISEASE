@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { saveReport } from "@/lib/reports.functions";
 import { type AnalysisResult, type ClinicalStatus, type ParameterRow } from "@/lib/mock-analysis";
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
-import { dashboardQueryOptions, savedDashboardResult } from "@/lib/dashboard-data";
+import { dashboardQueryOptions, savedDashboardResult, savedLegacyDashboardResult } from "@/lib/dashboard-data";
 import { SavedRecords } from "@/components/dashboard/SavedRecords";
 import { Button } from "@/components/ui/button";
 import { STATUS_LABEL } from "@/lib/video-config";
@@ -119,7 +119,7 @@ function DashboardPage() {
   const recordsQuery = useSuspenseQuery(dashboardQueryOptions(userId));
   const records = recordsQuery.data;
   const selectedRun = analysis ? records.runs.find((r) => r.id === analysis) : records.runs.find((r) => r.gait_results && ["complete", "completed", "completed_with_warnings"].includes(r.status));
-  const selected = savedDashboardResult(selectedRun, records.subjects);
+  const selected = savedDashboardResult(selectedRun, records.subjects) ?? (!analysis ? savedLegacyDashboardResult(records.reports[0]) : null);
   const stored = selected?.stored ?? null;
   const pose = selected?.pose ?? null;
   const [patientName, setPatientName] = useState("");

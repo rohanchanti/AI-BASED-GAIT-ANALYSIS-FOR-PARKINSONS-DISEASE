@@ -15,13 +15,14 @@ export type DashboardRun = Tables<"analysis_runs"> & {
 export const dashboardQueryOptions = (userId: string) => queryOptions({
   queryKey: ["dashboard-records", userId],
   queryFn: async () => {
-    const [subjects, visits, runs] = await Promise.all([
+    const [subjects, visits, runs, reports] = await Promise.all([
       supabase.from("subjects").select("*").eq("owner_id", userId).order("created_at", { ascending: false }),
       supabase.from("visits").select("*").eq("owner_id", userId).order("visit_date", { ascending: false }),
       supabase.from("analysis_runs").select("*, recordings(*), gait_results(result_payload, engine_output, pose_metrics, quality, validation, events)").eq("owner_id", userId).order("started_at", { ascending: false }),
+      supabase.from("reports").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     ]);
-    for (const response of [subjects, visits, runs]) if (response.error) throw new Error("Your saved dashboard records could not be loaded. Please try again.");
-    return { subjects: subjects.data ?? [], visits: visits.data ?? [], runs: (runs.data ?? []) as DashboardRun[] };
+    for (const response of [subjects, visits, runs, reports]) if (response.error) throw new Error("Your saved dashboard records could not be loaded. Please try again.");
+    return { subjects: subjects.data ?? [], visits: visits.data ?? [], runs: (runs.data ?? []) as DashboardRun[], reports: reports.data ?? [] };
   },
 });
 
@@ -47,4 +48,15 @@ export function savedDashboardResult(run: DashboardRun | undefined, subjects: Da
     patient_gender: subject?.sex ?? "", media_kind: payload.kind, media_name: rec?.original_filename ?? "",
     analysis_id: run.analysis_code ?? run.id, analysis_timestamp: run.completed_at ?? run.started_at,
   } };
+}
+
+/** Older saved reports have no run snapshot; retain their stored values without inventing missing fields. */
+export function savedLegacyDashboardResult(report: Tables<"reports"> | undefined) {
+  if (!report) return null;
+  const parameters = report.parameters as unknown as { rows?: AnalysisResult["parameters"]; summary?: AnalysisResult["summary"]; media_name?: string };
+  if (!parameters?.rows || !parameters.summary) return null;
+  const result: AnalysisResult = { kind: report.kind as AnalysisResult["kind"], mode: report.mode as AnalysisResult["mode"], probability: report.probability, confidence: report.confidence, riskLevel: report.risk_level as AnalysisResult["riskLevel"], parameters: parameters.rows, summary: parameters.summary };
+  return { engine: null, pose: null, stored: { result, patient_name: report.patient_name ?? "", patient_id: undefined,
+    patient_age: report.age == null ? "" : String(report.age), patient_gender: report.gender ?? "", media_kind: result.kind,
+    media_name: parameters.media_name ?? "", analysis_id: report.id, analysis_timestamp: report.created_at } };
 }
