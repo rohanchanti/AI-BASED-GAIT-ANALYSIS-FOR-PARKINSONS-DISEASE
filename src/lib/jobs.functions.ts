@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { validateSubjectFields } from "@/lib/subject-validation";
 import { subjectInformationSchema, ACQUISITION_CONSENT_VERSION } from "@/lib/subject-information";
+import { shouldCreateReanalysis, withFeatureMethods } from "@/lib/analysis-storage";
 import { VIDEO_LIMITS, ALLOWED_MIME, sniffContainer, canTransition, PROTOCOLS, SUCCESS_STATUSES, type JobStatus } from "@/lib/video-config";
 
 const BUCKET = "recordings";
@@ -93,7 +94,8 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
     if (ve) throw new Error(ve.message);
     visit = nv;
     }
-    const proto = PROTOCOLS.find((p) => p.id === data.protocol)!;
+    const proto = PROTOCOLS.find((p) => p.id === data.protocol);
+    if (!proto) throw new Error("Unsupported protocol.");
     const ext = mime === "video/mp4" ? "mp4" : mime === "video/quicktime" ? "mov" : /avi|msvideo/.test(mime) || /\.avi$/i.test(data.file.name) ? "avi" : /\.mp4$/i.test(data.file.name) ? "mp4" : /\.mov$/i.test(data.file.name) ? "mov" : "webm";
     const storagePath = `${userId}/${visit.id}/${data.sessionKey}.${ext}`;
     const { data: rec, error: re } = await supabase
@@ -131,6 +133,8 @@ export const createAnalysisJob = createServerFn({ method: "POST" })
         analysis_code: data.analysisCode ?? null,
         platform_version: v.platform ?? null,
         model_version: v.gaitModel ?? null,
+        model_name: v.modelName ?? null,
+        pipeline_version: v.featurePipeline ?? null,
         feature_pipeline_version: v.featurePipeline ?? null,
         pose_estimator_version: v.poseEstimator ?? null,
         heartbeat_at: new Date().toISOString(),
@@ -213,8 +217,21 @@ export const updateJobStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: run, error } = await supabase.from("analysis_runs").select("status, attempts").eq("id", data.runId).single();
+    const { data: run, error } = await supabase.from("analysis_runs").select("*").eq("id", data.runId).single();
     if (error || !run) throw new Error("Job not found.");
+    if (shouldCreateReanalysis(run.status, data.retry)) {
+      if (run.attempts >= VIDEO_LIMITS.maxAttempts) return { ok: false, status: run.status, error: "Retry limit reached." };
+      const { data: fresh, error: insertError } = await supabase.from("analysis_runs").insert({
+        owner_id: run.owner_id, recording_id: run.recording_id, session_key: crypto.randomUUID(),
+        status: data.status, stage: data.stage ?? "video_received", attempts: run.attempts + 1,
+        analysis_mode: run.analysis_mode, model_name: run.model_name, model_version: run.model_version,
+        pipeline_version: run.pipeline_version, feature_pipeline_version: run.feature_pipeline_version,
+        pose_estimator_version: run.pose_estimator_version, platform_version: run.platform_version,
+        preprocessing_config: run.preprocessing_config, heartbeat_at: new Date().toISOString(),
+      }).select("id, status").single();
+      if (insertError || !fresh) throw new Error(insertError?.message ?? "Could not create reanalysis.");
+      return { ok: true, status: fresh.status, runId: fresh.id };
+    }
     if (run.status !== data.status && !canTransition(run.status, data.status as JobStatus))
       return { ok: false, status: run.status };
     const now = new Date().toISOString();
@@ -269,7 +286,6 @@ export const saveJobResults = createServerFn({ method: "POST" })
       })
       .eq("id", run.recording_id);
     if ((data.status === "completed" || data.status === "completed_with_warnings") && data.result) {
-      await supabase.from("gait_results").delete().eq("run_id", run.id);
       const { error: ge } = await supabase.from("gait_results").insert({
         owner_id: userId,
         run_id: run.id,
@@ -281,25 +297,27 @@ export const saveJobResults = createServerFn({ method: "POST" })
         model_score: typeof data.result.probability === "number" ? data.result.probability : null,
         model_confidence: typeof data.result.confidence === "number" ? data.result.confidence : null,
         result_payload: data.result,
-        engine_output: data.engine ?? null,
+        engine_output: withFeatureMethods(data.engine) ?? null,
         landmark_frames: data.frames ?? null,
         is_synthetic: false,
       });
       if (ge) throw new Error(ge.message);
     }
-    await supabase
+    const { error: finalError } = await supabase
       .from("analysis_runs")
       .update({
         status: data.status,
         stage: data.status === "failed" || data.status === "needs_better_video" ? "quality_control" : "report_available",
         progress: 1,
         quality_report: data.qualityReport,
+        quality_metrics: data.pose?.quality ?? data.qualityReport,
         error_message: data.error ?? null,
         completed_at: now,
         heartbeat_at: now,
         updated_at: now,
       })
       .eq("id", run.id);
+    if (finalError) throw new Error(finalError.message);
     return { ok: true };
   });
 

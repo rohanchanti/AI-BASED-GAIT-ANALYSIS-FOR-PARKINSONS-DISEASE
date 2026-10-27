@@ -137,10 +137,13 @@ export const saveReport = createServerFn({ method: "POST" })
         .insert({
           owner_id: userId,
           recording_id: rec.id,
+          status: "processing",
           analysis_code: data.analysis_code ?? null,
           analysis_mode: data.mode,
           platform_version: ver.platform ?? null,
           model_version: ver.gaitModel ?? null,
+          model_name: ver.modelName ?? null,
+          pipeline_version: ver.featurePipeline ?? null,
           feature_pipeline_version: ver.featurePipeline ?? null,
           pose_estimator_version: ver.poseEstimator ?? null,
           completed_at: new Date().toISOString(),
@@ -160,6 +163,7 @@ export const saveReport = createServerFn({ method: "POST" })
         model_score: data.probability,
         model_confidence: data.confidence,
       });
+      await supabase.from("analysis_runs").update({ status: "complete" }).eq("id", run.id);
       await supabase.from("reports").update({ analysis_run_id: run.id }).eq("id", row.id);
       await supabase.from("audit_log").insert({
         actor_id: userId,
