@@ -75,7 +75,8 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
     const status = async (s: JobStatusUpdate) => {
       if (!runIdRef.current) return;
       try {
-        await updateJobStatus({ data: { ...s, runId: runIdRef.current } });
+        const updated = await updateJobStatus({ data: { ...s, runId: runIdRef.current } });
+        if (updated.ok && updated.runId) runIdRef.current = updated.runId;
       } catch {
         /* status write is best-effort mid-run */
       }
@@ -256,6 +257,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           setFailure((f) => (f ? { ...f, message: r.error ?? "This job can no longer be retried.", retryable: false } : f));
           return;
         }
+        if (r.runId) runIdRef.current = r.runId;
       } catch {
         /* fall through and retry anyway */
       }
