@@ -1,3 +1,5 @@
+import { QUALITY_THRESHOLDS } from "@/lib/video-config";
+
 /**
  * Centralized configuration for the pose / gait analysis pipeline.
  *
@@ -56,8 +58,8 @@ export const DEFAULT_POSE_CONFIG: PosePipelineConfig = {
   maxLandmarkDisplacementPerSec: 2.5,
   maxInterpolationGapFrames: 4,
   minValidFramePercent: 50,
-  minGaitCycles: 2,
-  minDurationSec: 3,
+  minGaitCycles: QUALITY_THRESHOLDS.minGaitCycles,
+  minDurationSec: QUALITY_THRESHOLDS.minDurationSec,
   minWidth: 240,
   minHeight: 180,
   minSampleFps: 10,

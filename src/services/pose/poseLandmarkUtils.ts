@@ -8,16 +8,16 @@ import {
 export type LandmarkMap = Partial<Record<LandmarkName, PoseLandmark>>;
 
 export function toLandmarkArray(
-  raw: { x: number; y: number; z: number; visibility?: number }[],
+  raw: ({ x?: number; y?: number; z?: number; visibility?: number; presence?: number } | null | undefined)[],
 ): PoseLandmark[] {
-  return raw.slice(0, LANDMARK_NAMES.length).map((l, i) => ({
-    name: LANDMARK_NAMES[i],
-    x: l.x,
-    y: l.y,
-    z: l.z ?? 0,
-    visibility: l.visibility ?? 0,
-    presence: l.visibility ?? 0,
-  }));
+  const landmarks: PoseLandmark[] = [];
+  raw.slice(0, LANDMARK_NAMES.length).forEach((l, i) => {
+    if (!l || typeof l.x !== "number" || typeof l.y !== "number" || typeof l.z !== "number" ||
+        typeof l.visibility !== "number" || ![l.x, l.y, l.z, l.visibility].every(Number.isFinite)) return;
+    landmarks.push({ name: LANDMARK_NAMES[i], x: l.x, y: l.y, z: l.z,
+      visibility: l.visibility, presence: l.presence ?? l.visibility });
+  });
+  return landmarks;
 }
 
 export function indexLandmarks(landmarks: PoseLandmark[] | null): LandmarkMap {
@@ -34,7 +34,7 @@ export function reliable(
 ): PoseLandmark | null {
   const l = map[name];
   if (!l) return null;
-  if (l.visibility < threshold) return null;
+  if (![l.x, l.y, l.z, l.visibility].every(Number.isFinite) || l.visibility < threshold) return null;
   return l;
 }
 
@@ -45,7 +45,7 @@ export function hasUsableGaitLandmarks(
 ): boolean {
   if (!landmarks) return false;
   const map = indexLandmarks(landmarks);
-  return GAIT_LANDMARKS.every((n) => (map[n]?.visibility ?? 0) >= threshold);
+  return GAIT_LANDMARKS.every((n) => reliable(map, n, threshold) != null);
 }
 
 /**

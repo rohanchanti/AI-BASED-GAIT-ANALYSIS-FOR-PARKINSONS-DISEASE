@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { checkVideoFile, checkUploadFile, sniffContainer, canTransition, isStale, evaluateQuality, checkProtocol, protocolById, VIDEO_LIMITS } from "./video-config";
 
-const good = { durationSec: 10, fps: 30, totalFrames: 150, framesWithPose: 145, multiPersonFrames: 0, poseConfidence: 0.8, bodyVisibility: 0.9, usableFrames: 140, meanSubjectHeight: 0.6, edgeCutRatio: 0, meanLuminance: null };
+const good = { durationSec: 10, fps: 30, totalFrames: 150, framesWithPose: 145, multiPersonFrames: 0, poseConfidence: 0.8, bodyVisibility: 0.9, usableFrames: 140, validCycles: 2, meanSubjectHeight: 0.6, edgeCutRatio: 0, meanLuminance: null };
 
 describe("upload limits", () => {
   it("max upload is 500 MB", () => expect(VIDEO_LIMITS.maxBytes).toBe(500 * 1024 * 1024));
@@ -40,6 +40,11 @@ describe("quality gate", () => {
   it("blocks when two people in most frames", () => expect(evaluateQuality({ ...good, multiPersonFrames: 100 }).status).toBe("fail"));
   it("blocks under 30 usable frames", () => expect(evaluateQuality({ ...good, usableFrames: 20 }).status).toBe("fail"));
   it("warns at moderate confidence", () => expect(evaluateQuality({ ...good, poseConfidence: 0.5 }).status).toBe("warn"));
+  it("blocks fewer than two complete gait cycles with a reason", () => expect(evaluateQuality({ ...good, validCycles: 1 }).issues).toContainEqual(expect.objectContaining({ code: "few_gait_cycles", severity: "blocking" })));
+  it("blocks missing cycle evidence", () => expect(evaluateQuality({ ...good, validCycles: null }).status).toBe("fail"));
+  it("blocks body visibility below 0.4", () => expect(evaluateQuality({ ...good, bodyVisibility: 0.39 }).issues).toContainEqual(expect.objectContaining({ code: "obscured", severity: "blocking" })));
+  it("blocks pose confidence below 0.4", () => expect(evaluateQuality({ ...good, poseConfidence: 0.39 }).issues).toContainEqual(expect.objectContaining({ code: "low_confidence", severity: "blocking" })));
+  it("blocks nonfinite quality evidence", () => expect(evaluateQuality({ ...good, poseConfidence: NaN }).status).toBe("fail"));
 });
 
 describe("protocol checks", () => {

@@ -273,6 +273,12 @@ export const saveJobResults = createServerFn({ method: "POST" })
     const { data: run, error } = await supabase.from("analysis_runs").select("id, recording_id, status").eq("id", data.runId).single();
     if (error || !run) throw new Error("Job not found.");
     if (run.status !== "processing" && run.status !== "running") throw new Error(`Job is ${run.status}; results not saved.`);
+    const blockingIssues = (data.qualityReport?.issues ?? []).filter((issue: { severity?: string }) => issue.severity === "blocking");
+    const needsBetterVideo = data.status === "needs_better_video" || data.qualityReport?.status === "fail" || blockingIssues.length > 0;
+    const finalStatus = needsBetterVideo ? "needs_better_video" : data.status;
+    const rejectionReason = needsBetterVideo
+      ? blockingIssues.map((issue: { message?: string }) => issue.message).filter(Boolean).join(" ").slice(0, 1000) || data.error || "Recording did not meet minimum data quality."
+      : data.error ?? null;
     const now = new Date().toISOString();
     await supabase
       .from("recordings")
@@ -282,10 +288,10 @@ export const saveJobResults = createServerFn({ method: "POST" })
         height: data.video.height ? Math.round(data.video.height) : null,
         fps: data.video.fps,
         protocol_checks: data.protocolChecks,
-        processing_status: data.status === "failed" || data.status === "needs_better_video" ? "failed" : "complete",
+        processing_status: finalStatus === "failed" || needsBetterVideo ? "failed" : "complete",
       })
       .eq("id", run.recording_id);
-    if ((data.status === "completed" || data.status === "completed_with_warnings") && data.result) {
+    if ((finalStatus === "completed" || finalStatus === "completed_with_warnings") && data.result) {
       const { error: ge } = await supabase.from("gait_results").insert({
         owner_id: userId,
         run_id: run.id,
@@ -306,12 +312,12 @@ export const saveJobResults = createServerFn({ method: "POST" })
     const { error: finalError } = await supabase
       .from("analysis_runs")
       .update({
-        status: data.status,
-        stage: data.status === "failed" || data.status === "needs_better_video" ? "quality_control" : "report_available",
+        status: finalStatus,
+        stage: finalStatus === "failed" || needsBetterVideo ? "quality_control" : "report_available",
         progress: 1,
         quality_report: data.qualityReport,
         quality_metrics: data.pose?.quality ?? data.qualityReport,
-        error_message: data.error ?? null,
+        error_message: rejectionReason,
         completed_at: now,
         heartbeat_at: now,
         updated_at: now,

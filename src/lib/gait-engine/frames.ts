@@ -1,6 +1,8 @@
 import type { PoseAnalysisFull } from "@/types/gait";
 import { FRAME_SCHEMA } from "./coordinates";
 import { ANALYSIS_VERSIONS } from "@/lib/analysis-version";
+import { LANDMARK_NAMES } from "@/types/pose";
+import { indexLandmarks } from "@/services/pose/poseLandmarkUtils";
 
 /**
  * Compact per-frame landmark record for persistence.
@@ -14,10 +16,15 @@ export function serializeFrames(pose: PoseAnalysisFull, maxFrames = 1800) {
     people: f.peopleDetected ?? 0,
     q: f.landmarks ? (f.valid === false ? "rejected" : "usable") : "no_pose",
     c: f.frameConfidence != null ? +f.frameConfidence.toFixed(3) : null,
-    lm: f.landmarks ? f.landmarks.flatMap((p) => [+p.x.toFixed(4), +p.y.toFixed(4), +p.z.toFixed(4), +(p.visibility ?? 0).toFixed(3)]) : null,
+    lm: f.landmarks ? LANDMARK_NAMES.flatMap((name) => {
+      const p = indexLandmarks(f.landmarks)[name];
+      return p && [p.x, p.y, p.z, p.visibility].every(Number.isFinite)
+        ? [+p.x.toFixed(4), +p.y.toFixed(4), +p.z.toFixed(4), +p.visibility.toFixed(3)]
+        : [null, null, null, null];
+    }) : null,
   }));
   return {
-    schema: { ...FRAME_SCHEMA, fields: "i=frame index, t=timestamp, pid=tracked person, people=persons detected, q=frame quality, c=frame confidence, lm=[x,y,z,visibility]×33" },
+    schema: { ...FRAME_SCHEMA, fields: "i=frame index, t=timestamp, pid=tracked person, people=persons detected, q=frame quality, c=frame confidence, lm=[x,y,z,visibility]×33; missing landmarks use null slots in canonical MediaPipe order" },
     model: ANALYSIS_VERSIONS.poseEstimator ?? "MediaPipe Pose Landmarker (lite)",
     frameSize: { width: pose.video.width, height: pose.video.height, unit: "px" },
     sampledFps: pose.video.sampledFps,
