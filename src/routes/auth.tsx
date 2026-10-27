@@ -12,6 +12,14 @@ const search = z.object({
 });
 
 export const Route = createFileRoute("/auth")({
+  head: () => ({ meta: [
+    { title: "Sign in | NeuroStride AI" },
+    { name: "description", content: "Sign in to your NeuroStride AI movement analysis workspace." },
+    { property: "og:title", content: "Sign in | NeuroStride AI" },
+    { property: "og:description", content: "Access your NeuroStride AI movement analysis workspace." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   validateSearch: (input) => search.parse(input),
   beforeLoad: async () => {
     const { data } = await supabase.auth.getSession();
