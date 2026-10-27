@@ -15,4 +15,10 @@ describe("analysis history", () => {
     expect(stored.parameters[0].method).toContain("Requires metric calibration");
     expect(original.parameters[0]).not.toHaveProperty("method");
   });
+  it("preserves the computed ankle-event method when preparing feature storage", () => {
+    const stored = withFeatureMethods({ parameters: [{ key: "cadence", value: 120, unit: "steps/min", method: "Ankle position relative to pelvis; 60 / mean(step time)", status: "estimated" }] });
+    expect(stored.parameters[0].method).toBe("Ankle position relative to pelvis; 60 / mean(step time)");
+    expect(stored.parameters[0].unit).toBe("steps/min");
+    expect(stored.parameters[0].value).toBe(120);
+  });
 });

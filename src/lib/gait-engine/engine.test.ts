@@ -28,6 +28,13 @@ describe("temporal parameters", () => {
   it("pooled stride time is 1.0 s", () => expect(get(out, "strideTime").value).toBe(1));
   it("step time is 0.5 s", () => expect(get(out, "stepTime").value).toBe(0.5));
   it("regular stride-time variability is zero", () => expect(get(out, "strideTimeCV").value).toBe(0));
+  it("stride variability uses sample SD across actual same-side intervals", () => {
+    const contacts = [0, 1, 2.2, 3.2];
+    const events = contacts.flatMap((t) => [ev(t, "left"), ev(t + 0.5, "right")]);
+    // Six pooled stride intervals: [1, 1.2, 1] twice; sample SD uses n-1.
+    const expected = 100 * Math.sqrt((4 * (1 - 16 / 15) ** 2 + 2 * (1.2 - 16 / 15) ** 2) / 5) / (16 / 15);
+    expect(get(computeGaitParameters({ events }), "strideTimeCV").value).toBeCloseTo(expected, 3);
+  });
   it("equal left/right step timing has 100% symmetry", () => expect(get(out, "stepTimeSymmetry").value).toBe(100));
   it("0.6/0.4 s steps have 60% temporal symmetry", () => expect(get(computeGaitParameters({ events: synthetic(6, 1, 0.6) }), "stepTimeSymmetry").value).toBe(60));
   it("every requested feature includes its unit and ankle-event method", () => {
