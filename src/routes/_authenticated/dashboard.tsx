@@ -119,7 +119,7 @@ function DashboardPage() {
   const recordsQuery = useSuspenseQuery(dashboardQueryOptions(userId));
   const records = recordsQuery.data;
   const selectedRun = analysis ? records.runs.find((r) => r.id === analysis) : records.runs.find((r) => r.gait_results && ["complete", "completed", "completed_with_warnings"].includes(r.status));
-  const selected = savedDashboardResult(selectedRun, records.subjects) ?? (!analysis ? savedLegacyDashboardResult(records.reports[0]) : null);
+  const selected = savedDashboardResult(selectedRun, records.subjects) ?? savedLegacyDashboardResult(analysis ? records.reports.find((r) => r.id === analysis) : records.reports[0]);
   const stored = selected?.stored ?? null;
   const pose = selected?.pose ?? null;
   const [patientName, setPatientName] = useState("");
@@ -139,7 +139,10 @@ function DashboardPage() {
   const history: HistoryReport[] = records.runs.map((run) => {
     const result = run.gait_results?.result_payload as unknown as AnalysisResult | null;
     return { id: run.analysis_code ?? run.id, kind: run.recordings?.modality ?? "gait", mode: run.analysis_mode ?? "", probability: result?.probability ?? null, confidence: result?.confidence ?? null, risk_level: result?.riskLevel ?? "Not available", patient_name: null, created_at: run.started_at, status: run.status };
-  });
+  }).concat(records.reports.filter((report) => !records.runs.some((run) => run.id === report.analysis_run_id)).map((report) => ({
+    id: report.id, kind: report.kind, mode: report.mode, probability: report.probability, confidence: report.confidence,
+    risk_level: report.risk_level, patient_name: report.patient_name, created_at: report.created_at, status: "complete",
+  }))).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
   async function onSave() {
     if (!stored) return;
@@ -238,6 +241,7 @@ function DashboardPage() {
       />
 
       <SavedRecords {...records} selected={selectedRun?.id} onSelect={(id) => navigate({ to: "/dashboard", search: { analysis: id } })} />
+      {records.reports.some((r) => !r.analysis_run_id) && <section className="mt-8 print:hidden"><h2 className="font-display text-xl font-semibold">Earlier saved reports</h2><div className="mt-3 space-y-2">{records.reports.filter((r) => !r.analysis_run_id).map((r) => <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 border-b border-border py-3 text-sm"><span>{r.id} · {new Date(r.created_at).toLocaleDateString()} · {r.kind}</span><Button variant="outline" size="sm" onClick={() => navigate({ to: "/dashboard", search: { analysis: r.id } })}>View report</Button></div>)}</div></section>}
       {!stored && <div className="mt-8"><EmptyState />{selectedRun && <p className="mt-3 text-sm text-muted-foreground">{STATUS_LABEL[selectedRun.status] ?? selectedRun.status}{selectedRun.error_message ? ` — ${selectedRun.error_message}` : " — No saved result is available for this analysis."}</p>}</div>}
 
       {stored && (
