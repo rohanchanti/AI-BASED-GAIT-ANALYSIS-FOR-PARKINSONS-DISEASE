@@ -162,7 +162,7 @@ export function preprocessPoseFrames(
     for (let i = 0; i < n; i++) {
       const lm = frames[i].landmarks?.find((l) => l.name === name);
       if (!lm) continue;
-      if (lm.visibility < cfg.minLandmarkConfidence) {
+      if (![lm.x, lm.y, lm.z, lm.visibility].every(Number.isFinite) || lm.visibility < cfg.minLandmarkConfidence) {
         droppedLowConfidence++;
         continue;
       }
@@ -178,7 +178,8 @@ export function preprocessPoseFrames(
       const s = arr[i];
       if (!s) continue;
       if (lastIdx >= 0) {
-        const prev = arr[lastIdx]!;
+        const prev = arr[lastIdx];
+        if (!prev) continue;
         const dt = Math.max(dtDefault, frames[i].timestamp - frames[lastIdx].timestamp);
         const disp = Math.hypot(s.x - prev.x, s.y - prev.y);
         if (disp / dt > cfg.maxLandmarkDisplacementPerSec) {
@@ -219,7 +220,7 @@ export function preprocessPoseFrames(
     const landmarks: PoseLandmark[] = [];
     let interpolatedHere = false;
     for (const name of LANDMARK_NAMES) {
-      const s = series.get(name)![i];
+      const s = series.get(name)?.[i];
       if (!s) continue;
       if (s.interpolated) interpolatedHere = true;
       landmarks.push({

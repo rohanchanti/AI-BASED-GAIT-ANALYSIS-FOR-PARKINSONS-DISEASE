@@ -207,6 +207,7 @@ export const QUALITY_THRESHOLDS = {
   minBodyVisibility: 0.4,
   warnBodyVisibility: 0.7,
   minUsableFrames: 30,
+  minGaitCycles: 2,
   minSubjectHeight: 0.25,
   maxEdgeCutRatio: 0.3,
   minLuminance: 0.15,
@@ -221,6 +222,7 @@ export interface QualityInput {
   poseConfidence: number;
   bodyVisibility: number;
   usableFrames: number;
+  validCycles: number | null;
   meanSubjectHeight: number | null; // fraction of frame height
   edgeCutRatio: number | null; // fraction of pose frames with landmarks touching the edge
   meanLuminance: number | null; // 0..1
@@ -236,7 +238,7 @@ export function evaluateQuality(q: QualityInput, t = QUALITY_THRESHOLDS): { stat
   const issues: QualityIssue[] = [];
   const add = (code: string, severity: QualityIssue["severity"], message: string, advice: string) =>
     issues.push({ code, severity, message, advice });
-  if (q.durationSec < t.minDurationSec)
+  if (!Number.isFinite(q.durationSec) || q.durationSec < t.minDurationSec)
     add("short_duration", "blocking", `Video is only ${q.durationSec.toFixed(1)} s long.`, "Record at least several walking cycles (≥ 5 s).");
   if (q.fps != null && q.fps < t.minFps)
     add("low_fps", "blocking", `Frame rate is ${q.fps.toFixed(0)} fps.`, "Use a camera setting of at least 24–30 fps.");
@@ -248,11 +250,11 @@ export function evaluateQuality(q: QualityInput, t = QUALITY_THRESHOLDS): { stat
   const multi = q.framesWithPose ? q.multiPersonFrames / q.framesWithPose : 0;
   if (multi > t.maxMultiPersonRatio)
     add("multiple_people", multi > 0.5 ? "blocking" : "warning", `More than one person visible in ${Math.round(multi * 100)}% of frames.`, "Only the subject should be in view while recording.");
-  if (q.poseConfidence < t.minPoseConfidence)
+  if (!Number.isFinite(q.poseConfidence) || q.poseConfidence < t.minPoseConfidence)
     add("low_confidence", "blocking", "Pose landmarks have low confidence.", "Improve lighting and contrast between subject and background.");
   else if (q.poseConfidence < t.warnPoseConfidence)
     add("low_confidence", "warning", "Pose landmark confidence is moderate.", "Better lighting or a plainer background will help.");
-  if (q.bodyVisibility < t.minBodyVisibility)
+  if (!Number.isFinite(q.bodyVisibility) || q.bodyVisibility < t.minBodyVisibility)
     add("obscured", "blocking", "Upper or lower body is hidden in most frames.", "Remove obstacles and keep head to feet in view.");
   else if (q.bodyVisibility < t.warnBodyVisibility)
     add("obscured", "warning", "Parts of the body are hidden in some frames.", "Keep legs and feet clearly visible.");
@@ -264,6 +266,8 @@ export function evaluateQuality(q: QualityInput, t = QUALITY_THRESHOLDS): { stat
     add("dark", "warning", "Recording is very dark.", "Add light in front of the subject.");
   if (q.usableFrames < t.minUsableFrames)
     add("few_usable_frames", "blocking", `Only ${q.usableFrames} usable frames were found.`, "Record a longer, well-lit video with the full body visible.");
+  if (q.validCycles == null || !Number.isFinite(q.validCycles) || q.validCycles < t.minGaitCycles)
+    add("few_gait_cycles", "blocking", `${q.validCycles == null || !Number.isFinite(q.validCycles) ? "No verified" : q.validCycles} complete gait cycles; ${t.minGaitCycles} required.`, "Record a longer walk with both legs and feet visible.");
   const status = issues.some((i) => i.severity === "blocking") ? "fail" : issues.length ? "warn" : "pass";
   return { status, issues };
 }
