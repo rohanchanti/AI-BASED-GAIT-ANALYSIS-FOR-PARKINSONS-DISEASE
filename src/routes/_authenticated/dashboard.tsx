@@ -136,7 +136,7 @@ function DashboardPage() {
     setGender(stored?.patient_gender ?? "");
     setSavedId(null);
   }, [selectedRun?.id, stored?.patient_name, stored?.patient_age, stored?.patient_gender]);
-  const history: HistoryReport[] = records.runs.map((run) => {
+  const history: HistoryReport[] = records.runs.map((run): HistoryReport => {
     const result = run.gait_results?.result_payload as unknown as AnalysisResult | null;
     return { id: run.analysis_code ?? run.id, kind: run.recordings?.modality ?? "gait", mode: run.analysis_mode ?? "", probability: result?.probability ?? null, confidence: result?.confidence ?? null, risk_level: result?.riskLevel ?? "Not available", patient_name: null, created_at: run.started_at, status: run.status };
   }).concat(records.reports.filter((report) => !records.runs.some((run) => run.id === report.analysis_run_id)).map((report) => ({
