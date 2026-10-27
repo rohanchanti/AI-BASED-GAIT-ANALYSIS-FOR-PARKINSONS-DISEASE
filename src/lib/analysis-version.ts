@@ -12,7 +12,7 @@ export const ANALYSIS_VERSIONS = {
   /** risk/severity model applied to the gait feature vector */
   gaitModel: "NeuroStride-Gait-v1.2",
   /** feature-extraction pipeline (preprocessing + biomarker computation) */
-  featurePipeline: "v1.1",
+  featurePipeline: "v1.2",
   /** markerless pose estimator */
   poseEstimator: "MediaPipe Pose Landmarker (lite) v2.0",
   /** facial landmark pipeline — not configured yet */

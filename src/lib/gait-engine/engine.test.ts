@@ -1,7 +1,7 @@
 // Software verification with SYNTHETIC signals only. Not scientific validation.
 import { describe, it, expect } from "vitest";
 import type { GaitEvent } from "@/types/gait";
-import { computeGaitParameters } from "./parameters";
+import { computeGaitParameters, CALIBRATION_REQUIRED } from "./parameters";
 import { normalizedToPixel, pixelToMetric } from "./coordinates";
 import { mae, rmse, blandAltman, icc21, classificationMetrics, participantSplit, assertNoLeakage, wilson } from "./validation";
 import { parseGaitpdbFileName, forceReferenceFeatures, parseGaitpdbText } from "./gaitpdb";
@@ -15,12 +15,34 @@ function synthetic(nStrides = 6, stride = 1.0, rightOffset = 0.5) {
   }
   return e;
 }
-const get = (o: ReturnType<typeof computeGaitParameters>, k: string) => o.parameters.find((p) => p.key === k)!;
+const get = (o: ReturnType<typeof computeGaitParameters>, k: string) => {
+  const p = o.parameters.find((p) => p.key === k);
+  if (!p) throw new Error(`Missing parameter ${k}`);
+  return p;
+};
 
 describe("temporal parameters", () => {
   const out = computeGaitParameters({ events: synthetic() });
   it("cadence is 120 steps/min for 0.5 s steps", () => expect(get(out, "cadence").value).toBeCloseTo(120, 6));
   it("stride time is 1.0 s", () => expect(get(out, "strideTimeLeft").value).toBeCloseTo(1, 6));
+  it("pooled stride time is 1.0 s", () => expect(get(out, "strideTime").value).toBe(1));
+  it("step time is 0.5 s", () => expect(get(out, "stepTime").value).toBe(0.5));
+  it("regular stride-time variability is zero", () => expect(get(out, "strideTimeCV").value).toBe(0));
+  it("stride variability uses sample SD across actual same-side intervals", () => {
+    const contacts = [0, 1, 2.2, 3.2];
+    const events = contacts.flatMap((t) => [ev(t, "left"), ev(t + 0.5, "right")]);
+    // Six pooled stride intervals: [1, 1.2, 1] twice; sample SD uses n-1.
+    const expected = 100 * Math.sqrt((4 * (1 - 16 / 15) ** 2 + 2 * (1.2 - 16 / 15) ** 2) / 5) / (16 / 15);
+    expect(get(computeGaitParameters({ events }), "strideTimeCV").value).toBeCloseTo(expected, 3);
+  });
+  it("equal left/right step timing has 100% symmetry", () => expect(get(out, "stepTimeSymmetry").value).toBe(100));
+  it("0.6/0.4 s steps have 60% temporal symmetry", () => expect(get(computeGaitParameters({ events: synthetic(6, 1, 0.6) }), "stepTimeSymmetry").value).toBe(60));
+  it("every requested feature includes its unit and ankle-event method", () => {
+    for (const [key, unit] of [["cadence", "steps/min"], ["stepTime", "s"], ["strideTime", "s"], ["strideTimeCV", "% CV"], ["stepTimeSymmetry", "%"]]) {
+      expect(get(out, key).unit).toBe(unit);
+      expect(get(out, key).method).toContain("Ankle position relative to pelvis");
+    }
+  });
   it("stance 0.6 s and swing 0.4 s", () => {
     expect(get(out, "stanceTime").value).toBeCloseTo(0.6, 6);
     expect(get(out, "swingTime").value).toBeCloseTo(0.4, 6);
@@ -42,8 +64,20 @@ describe("missing data", () => {
   it("step length is unavailable without calibration", () => expect(get(computeGaitParameters({ events: synthetic() }), "stepLength").status).toBe("unavailable"));
   it("walking speed unavailable without distance", () => expect(get(computeGaitParameters({ events: synthetic() }), "walkingSpeed").value).toBeNull());
   it("walking speed = distance / duration", () => {
-    const o = computeGaitParameters({ events: synthetic(), walkingDistanceM: 5.5 });
+    const o = computeGaitParameters({ events: synthetic(), walkingDistanceM: 5.5, calibration: { source: "known-distance", metersPerUnit: 10, estimated: false, note: "Measured 5 m reference spanning 0.5 normalized units" } });
     expect(get(o, "walkingSpeed").value).toBeCloseTo(5.5 / 5.5, 3); // contacts span 0 → 5.5 s
+  });
+  it("entered walking distance alone cannot unlock speed or stride length", () => {
+    const o = computeGaitParameters({ events: synthetic(), walkingDistanceM: 5.5 });
+    for (const key of ["walkingSpeed", "strideLength"]) {
+      expect(get(o, key).value).toBeNull();
+      expect(get(o, key).reason).toBe(CALIBRATION_REQUIRED);
+    }
+  });
+  it("invalid calibration cannot unlock speed", () => {
+    const o = computeGaitParameters({ events: synthetic(), walkingDistanceM: 5.5, calibration: { source: "known-distance", metersPerUnit: NaN, estimated: false, note: "invalid" } });
+    expect(get(o, "walkingSpeed").reason).toBe(CALIBRATION_REQUIRED);
+    expect(o.calibration).toBeNull();
   });
   it("invalid timestamps are rejected", () => {
     const o = computeGaitParameters({ events: [...synthetic(), ev(NaN, "left"), ev(-1, "right")] });

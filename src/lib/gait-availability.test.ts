@@ -30,4 +30,12 @@ describe("gait values without invented replacements", () => {
     expect(result.parameters.find((p) => p.key === "walking_speed")?.patient).toBeNull();
     expect(result.summary.parkinsonsRisk).toBeNull();
   });
+  it("retains the calibration-required reason for uncalibrated spatial measures", () => {
+    const result = analysisFromEngine(computeGaitParameters({ events: [], walkingDistanceM: 10 }), "normal");
+    for (const key of ["walking_speed", "stride_length"]) {
+      const parameter = result.parameters.find((p) => p.key === key);
+      expect(parameter?.patient).toBeNull();
+      expect(parameter?.interpretation).toBe("Not available - calibration required");
+    }
+  });
 });

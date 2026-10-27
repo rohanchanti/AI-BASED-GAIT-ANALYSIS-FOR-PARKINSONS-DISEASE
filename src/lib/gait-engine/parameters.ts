@@ -3,9 +3,10 @@
  * Inputs: video-derived gait events (timestamps in seconds from the decoded video clock).
  * Every output is either a value with provenance or an explicit "unavailable" with a reason.
  */
-import type { GaitEvent } from "@/types/gait";
+import type { CalibrationInfo, GaitEvent } from "@/types/gait";
 
-export const ENGINE_VERSION = "gait-engine 1.0.0";
+export const ENGINE_VERSION = "gait-engine 1.1.0";
+export const CALIBRATION_REQUIRED = "Not available - calibration required";
 
 export type ParamStatus = "measured" | "estimated" | "experimental" | "unavailable";
 export type ValidationStatus = "software-verified (synthetic)" | "not validated" | "not implemented";
@@ -28,6 +29,8 @@ export interface ParamValue {
   status: ParamStatus;
   n: number; // number of intervals/cycles used
   reason?: string;
+  unit?: string;
+  method?: string;
 }
 
 export const PARAMETER_DEFINITIONS: ParamDefinition[] = [
@@ -37,13 +40,15 @@ export const PARAMETER_DEFINITIONS: ParamDefinition[] = [
   { key: "stepTimeRight", name: "Step time (right)", unit: "s", definition: "Step ending with a right initial contact.", formula: "IC(R) − preceding IC(L)", inputs: "Alternating initial contacts", minimum: "≥ 2 right steps", validation: "software-verified (synthetic)", failureModes: "One-sided occlusion in side view." },
   { key: "strideTimeLeft", name: "Stride time (left)", unit: "s", definition: "Time between successive left initial contacts.", formula: "IC(L, k+1) − IC(L, k)", inputs: "Left initial contacts", minimum: "≥ 2 strides", validation: "software-verified (synthetic)", failureModes: "A missed contact doubles the interval (intervals > 2.5 s are rejected)." },
   { key: "strideTimeRight", name: "Stride time (right)", unit: "s", definition: "Time between successive right initial contacts.", formula: "IC(R, k+1) − IC(R, k)", inputs: "Right initial contacts", minimum: "≥ 2 strides", validation: "software-verified (synthetic)", failureModes: "As left." },
+  { key: "strideTime", name: "Stride time", unit: "s", definition: "Mean of complete same-side contact intervals pooled over both sides.", formula: "mean(IC(side, k+1) − IC(side, k))", inputs: "Bilateral initial contacts", minimum: "≥ 2 strides", validation: "software-verified (synthetic)", failureModes: "Missed contacts and turning bias intervals." },
   { key: "stanceTime", name: "Stance time", unit: "s", definition: "Initial contact to toe-off of the same foot.", formula: "TO(side, k) − IC(side, k), TO taken as first toe-off after IC and before next IC", inputs: "Initial contacts + toe-offs", minimum: "≥ 2 stance phases", validation: "software-verified (synthetic)", failureModes: "Toe-off from ankle kinematics is less reliable than contact; experimental." },
   { key: "swingTime", name: "Swing time", unit: "s", definition: "Toe-off to next initial contact of the same foot.", formula: "IC(side, k+1) − TO(side, k)", inputs: "Initial contacts + toe-offs", minimum: "≥ 2 swing phases", validation: "software-verified (synthetic)", failureModes: "As stance." },
   { key: "doubleSupport", name: "Double-support time", unit: "s", definition: "Time both feet are on the ground per stride.", formula: "Not computed", inputs: "Bilateral IC + TO", minimum: "Validated bilateral toe-off detection", validation: "not implemented", failureModes: "Video toe-off timing error is the same order as double support (~0.1 s)." },
   { key: "stepTimeCV", name: "Step-time variability", unit: "% CV", definition: "Coefficient of variation of step time.", formula: "100 × SD / mean (sample SD, n−1)", inputs: "Step times", minimum: "≥ 6 steps", validation: "software-verified (synthetic)", failureModes: "Inflated by detection jitter; short trials." },
   { key: "strideTimeCV", name: "Stride-time variability", unit: "% CV", definition: "CV of stride time pooled over both sides.", formula: "100 × SD / mean", inputs: "Stride times", minimum: "≥ 4 strides", validation: "software-verified (synthetic)", failureModes: "As step-time CV." },
   { key: "stepTimeAsymmetry", name: "Step-time asymmetry", unit: "%", definition: "Left/right temporal asymmetry.", formula: "100 × |L − R| / (0.5 × (L + R)) using mean left and right step times", inputs: "Left and right step times", minimum: "≥ 2 steps per side", validation: "software-verified (synthetic)", failureModes: "Biased by one-sided occlusion." },
-  { key: "walkingSpeed", name: "Walking speed", unit: "m/s", definition: "Entered walking distance divided by walking duration.", formula: "distance / (last IC − first IC)", inputs: "Entered distance (m) + IC timestamps", minimum: "Distance entered and covered within the recording", validation: "not validated", failureModes: "Assumes the entered distance was walked between first and last contact." },
+  { key: "stepTimeSymmetry", name: "Left-right symmetry", unit: "%", definition: "Temporal symmetry of mean left and right step times; 100% means equal timing.", formula: "clamp(100 × (1 − |L − R| / (0.5 × (L + R))), 0, 100)", inputs: "Left and right step times", minimum: "≥ 2 steps per side", validation: "software-verified (synthetic)", failureModes: "Not spatial symmetry; one-sided occlusion biases estimates." },
+  { key: "walkingSpeed", name: "Walking speed", unit: "m/s", definition: "Recorded walking distance divided by walking duration, only with recorded spatial calibration.", formula: "distance / (last IC − first IC)", inputs: "Recorded metric calibration + entered distance (m) + IC timestamps", minimum: "Calibration recorded; distance entered and covered within the recording", validation: "not validated", failureModes: "Assumes the entered distance was walked between first and last contact." },
   { key: "stepLength", name: "Step length", unit: "m", definition: "Distance between feet at contact.", formula: "Requires metric calibration", inputs: "Calibrated foot positions", minimum: "Validated spatial calibration", validation: "not implemented", failureModes: "Perspective, lens distortion and camera distance." },
   { key: "strideLength", name: "Stride length", unit: "m", definition: "Distance between successive same-foot contacts.", formula: "Requires metric calibration", inputs: "Calibrated foot positions", minimum: "Validated spatial calibration", validation: "not implemented", failureModes: "As step length." },
   { key: "turnDuration", name: "Turning duration", unit: "s", definition: "Duration of the TUG turn.", formula: "Not computed", inputs: "Trunk orientation", minimum: "Validated turn detector", validation: "not implemented", failureModes: "Monocular trunk yaw is ambiguous." },
@@ -76,6 +81,8 @@ export interface EngineInput {
   events: GaitEvent[];
   walkingDistanceM?: number | null;
   durationSec?: number | null;
+  /** Explicit calibration evidence, retained in the persisted engine snapshot. */
+  calibration?: CalibrationInfo | null;
 }
 
 export interface EngineOutput {
@@ -84,6 +91,7 @@ export interface EngineOutput {
   counts: { initialContacts: number; toeOffs: number; steps: number; strides: number; rejectedEvents: number };
   notes: string[];
   stepSeries: { t: number; side: "left" | "right"; stepTime: number }[];
+  calibration?: CalibrationInfo | null;
 }
 
 export function computeGaitParameters(input: EngineInput): EngineOutput {
@@ -131,7 +139,7 @@ export function computeGaitParameters(input: EngineInput): EngineOutput {
   }
 
   const P: ParamValue[] = [];
-  const put = (key: string, arr: number[], min: number, f: (a: number[]) => number, status: ParamStatus = "measured") =>
+  const put = (key: string, arr: number[], min: number, f: (a: number[]) => number, status: ParamStatus = "estimated") =>
     P.push(
       arr.length >= min
         ? { key, value: +f(arr).toFixed(4), status, n: arr.length }
@@ -143,6 +151,7 @@ export function computeGaitParameters(input: EngineInput): EngineOutput {
   put("stepTimeRight", stepsR, 2, mean);
   put("strideTimeLeft", strL, 2, mean);
   put("strideTimeRight", strR, 2, mean);
+  put("strideTime", strides, 2, mean);
   put("stanceTime", stance, 2, mean, "experimental");
   put("swingTime", swing, 2, mean, "experimental");
   P.push({ key: "doubleSupport", value: null, status: "unavailable", n: 0, reason: "No validated bilateral toe-off method for monocular video." });
@@ -151,10 +160,16 @@ export function computeGaitParameters(input: EngineInput): EngineOutput {
   if (stepsL.length >= 2 && stepsR.length >= 2) {
     const l = mean(stepsL), r = mean(stepsR);
     P.push({ key: "stepTimeAsymmetry", value: +((100 * Math.abs(l - r)) / (0.5 * (l + r))).toFixed(3), status: "measured", n: stepsL.length + stepsR.length });
+    P.push({ key: "stepTimeSymmetry", value: +Math.max(0, Math.min(100, 100 * (1 - Math.abs(l - r) / (0.5 * (l + r))))).toFixed(3), status: "estimated", n: stepsL.length + stepsR.length });
   } else P.push({ key: "stepTimeAsymmetry", value: null, status: "unavailable", n: 0, reason: "Needs ≥ 2 steps on each side." });
+  if (stepsL.length < 2 || stepsR.length < 2)
+    P.push({ key: "stepTimeSymmetry", value: null, status: "unavailable", n: stepsL.length + stepsR.length, reason: "Needs ≥ 2 steps on each side." });
 
   const dist = input.walkingDistanceM;
-  if (dist && dist > 0 && ic.length >= 2) {
+  const cal = input.calibration;
+  const calibrated = cal?.source === "known-distance" && typeof cal.metersPerUnit === "number" && Number.isFinite(cal.metersPerUnit) && cal.metersPerUnit > 0;
+  if (!calibrated) P.push({ key: "walkingSpeed", value: null, status: "unavailable", n: 0, reason: CALIBRATION_REQUIRED });
+  else if (dist && Number.isFinite(dist) && dist > 0 && ic.length >= 2) {
     const dur = ic[ic.length - 1].timestamp - ic[0].timestamp;
     P.push(dur > 0.5
       ? { key: "walkingSpeed", value: +(dist / dur).toFixed(3), status: "estimated", n: ic.length, reason: "Uses entered distance; assumes it was walked between first and last contact." }
@@ -162,14 +177,18 @@ export function computeGaitParameters(input: EngineInput): EngineOutput {
   } else P.push({ key: "walkingSpeed", value: null, status: "unavailable", n: 0, reason: "Walking distance not entered or too few contacts." });
 
   for (const key of ["stepLength", "strideLength"])
-    P.push({ key, value: null, status: "unavailable", n: 0, reason: "Normalized image coordinates are not metric; no validated calibration." });
+    P.push({ key, value: null, status: "unavailable", n: 0, reason: calibrated ? "Not available - calibrated contact-position extraction not implemented" : CALIBRATION_REQUIRED });
   P.push({ key: "turnDuration", value: null, status: "unavailable", n: 0, reason: "No validated turn detector implemented." });
   P.push({ key: "fog", value: null, status: "unavailable", n: 0, reason: "No dedicated validated freezing-of-gait method implemented." });
   P.push({ key: "tremor", value: null, status: "unavailable", n: 0, reason: "15 fps sampling and current algorithm cannot support tremor measurement." });
 
   return {
     version: ENGINE_VERSION,
-    parameters: P,
+    parameters: P.map((p) => {
+      const definition = PARAMETER_DEFINITIONS.find((d) => d.key === p.key);
+      return { ...p, unit: definition?.unit ?? "", method: `${EVENT_METHOD.name}; ${definition?.formula ?? "Not computed"}; inputs: ${definition?.inputs ?? "Not available"}` };
+    }),
+    calibration: calibrated ? cal : null,
     counts: { initialContacts: ic.length, toeOffs: to.length, steps: steps.length, strides: strides.length, rejectedEvents: rejected },
     notes,
     stepSeries,
