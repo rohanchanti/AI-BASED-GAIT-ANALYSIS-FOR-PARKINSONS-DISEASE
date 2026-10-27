@@ -9,7 +9,7 @@ export type DashboardSubject = Tables<"subjects">;
 export type DashboardVisit = Tables<"visits">;
 export type DashboardRun = Tables<"analysis_runs"> & {
   recordings: Tables<"recordings"> | null;
-  gait_results: Array<Pick<Tables<"gait_results">, "result_payload" | "engine_output" | "pose_metrics" | "quality" | "validation" | "events">>;
+  gait_results: Pick<Tables<"gait_results">, "result_payload" | "engine_output" | "pose_metrics" | "quality" | "validation" | "events"> | null;
 };
 
 export const dashboardQueryOptions = (userId: string) => queryOptions({
@@ -27,9 +27,9 @@ export const dashboardQueryOptions = (userId: string) => queryOptions({
 
 export function savedDashboardResult(run: DashboardRun | undefined, subjects: DashboardSubject[]) {
   if (!run || !["complete", "completed", "completed_with_warnings"].includes(run.status)) return null;
-  const snapshot = run.gait_results[0];
+  const snapshot = run.gait_results;
   const payload = snapshot?.result_payload as unknown as AnalysisResult | null;
-  if (!payload || !Array.isArray(payload.parameters) || !payload.summary) return null;
+  if (!snapshot || !payload || !Array.isArray(payload.parameters) || !payload.summary) return null;
   const rec = run.recordings;
   const subject = subjects.find((s) => s.id === rec?.subject_id);
   const engine = snapshot.engine_output as unknown as EngineOutput | null;

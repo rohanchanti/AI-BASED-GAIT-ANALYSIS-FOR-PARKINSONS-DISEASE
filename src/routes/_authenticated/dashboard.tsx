@@ -52,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  validateSearch: (search: Record<string, unknown>) => ({ analysis: typeof search.analysis === "string" ? search.analysis : undefined }),
+  validateSearch: (search: Record<string, unknown>): { analysis?: string } => ({ analysis: typeof search.analysis === "string" ? search.analysis : undefined }),
   loader: async ({ context }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw new Error("Please sign in to view your dashboard.");
@@ -118,7 +118,7 @@ function DashboardPage() {
   const { analysis } = Route.useSearch();
   const recordsQuery = useSuspenseQuery(dashboardQueryOptions(userId));
   const records = recordsQuery.data;
-  const selectedRun = analysis ? records.runs.find((r) => r.id === analysis) : records.runs.find((r) => r.gait_results.length > 0);
+  const selectedRun = analysis ? records.runs.find((r) => r.id === analysis) : records.runs.find((r) => r.gait_results && ["complete", "completed", "completed_with_warnings"].includes(r.status));
   const selected = savedDashboardResult(selectedRun, records.subjects);
   const stored = selected?.stored ?? null;
   const pose = selected?.pose ?? null;
@@ -137,7 +137,7 @@ function DashboardPage() {
     setSavedId(null);
   }, [selectedRun?.id, stored?.patient_name, stored?.patient_age, stored?.patient_gender]);
   const history: HistoryReport[] = records.runs.map((run) => {
-    const result = run.gait_results[0]?.result_payload as unknown as AnalysisResult | null;
+    const result = run.gait_results?.result_payload as unknown as AnalysisResult | null;
     return { id: run.analysis_code ?? run.id, kind: run.recordings?.modality ?? "gait", mode: run.analysis_mode ?? "", probability: result?.probability ?? null, confidence: result?.confidence ?? null, risk_level: result?.riskLevel ?? "Not available", patient_name: null, created_at: run.started_at, status: run.status };
   });
 
