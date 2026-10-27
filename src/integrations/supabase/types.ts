@@ -24,12 +24,16 @@ export type Database = {
           feature_pipeline_version: string | null
           heartbeat_at: string | null
           id: string
+          model_name: string | null
           model_version: string | null
           owner_id: string
+          parameters: Json | null
+          pipeline_version: string | null
           platform_version: string | null
           pose_estimator_version: string | null
           preprocessing_config: Json
           progress: number
+          quality_metrics: Json | null
           quality_report: Json | null
           recording_id: string
           session_key: string | null
@@ -47,12 +51,16 @@ export type Database = {
           feature_pipeline_version?: string | null
           heartbeat_at?: string | null
           id?: string
+          model_name?: string | null
           model_version?: string | null
           owner_id: string
+          parameters?: Json | null
+          pipeline_version?: string | null
           platform_version?: string | null
           pose_estimator_version?: string | null
           preprocessing_config?: Json
           progress?: number
+          quality_metrics?: Json | null
           quality_report?: Json | null
           recording_id: string
           session_key?: string | null
@@ -70,12 +78,16 @@ export type Database = {
           feature_pipeline_version?: string | null
           heartbeat_at?: string | null
           id?: string
+          model_name?: string | null
           model_version?: string | null
           owner_id?: string
+          parameters?: Json | null
+          pipeline_version?: string | null
           platform_version?: string | null
           pose_estimator_version?: string | null
           preprocessing_config?: Json
           progress?: number
+          quality_metrics?: Json | null
           quality_report?: Json | null
           recording_id?: string
           session_key?: string | null
@@ -284,6 +296,44 @@ export type Database = {
           {
             foreignKeyName: "export_log_run_id_fkey"
             columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gait_features: {
+        Row: {
+          analysis_run_id: string
+          id: string
+          method: string
+          name: string
+          status: string
+          unit: string
+          value: number | null
+        }
+        Insert: {
+          analysis_run_id: string
+          id?: string
+          method: string
+          name: string
+          status: string
+          unit: string
+          value?: number | null
+        }
+        Update: {
+          analysis_run_id?: string
+          id?: string
+          method?: string
+          name?: string
+          status?: string
+          unit?: string
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gait_features_analysis_run_id_fkey"
+            columns: ["analysis_run_id"]
             isOneToOne: false
             referencedRelation: "analysis_runs"
             referencedColumns: ["id"]
