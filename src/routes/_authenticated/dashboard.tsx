@@ -1,8 +1,8 @@
 import { ANALYSIS_VERSIONS } from "@/lib/analysis-version";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -15,11 +15,13 @@ import {
   CheckCircle2, Footprints, ScanFace, Mic2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { saveReport, listReports } from "@/lib/reports.functions";
-import { analysisFromEngine, unavailableGaitAnalysis, type AnalysisResult, type ClinicalStatus, type ParameterRow } from "@/lib/mock-analysis";
-import type { EngineOutput } from "@/lib/gait-engine/parameters";
+import { saveReport } from "@/lib/reports.functions";
+import { type AnalysisResult, type ClinicalStatus, type ParameterRow } from "@/lib/mock-analysis";
 import { exportCSV, exportJSON, exportPDF, exportPNG } from "@/lib/export-report";
-import { readPoseAnalysis } from "@/lib/pose-session";
+import { dashboardQueryOptions, savedDashboardResult } from "@/lib/dashboard-data";
+import { SavedRecords } from "@/components/dashboard/SavedRecords";
+import { Button } from "@/components/ui/button";
+import { STATUS_LABEL } from "@/lib/video-config";
 import { TraceableParameters } from "@/components/gait/TraceableParameters";
 import { PoseAnalysisSection } from "@/components/gait/PoseAnalysisSection";
 import { GaitVisualization } from "@/components/gait/GaitVisualization";
@@ -50,6 +52,15 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
+  validateSearch: (search: Record<string, unknown>) => ({ analysis: typeof search.analysis === "string" ? search.analysis : undefined }),
+  loader: async ({ context }) => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) throw new Error("Please sign in to view your dashboard.");
+    await context.queryClient.ensureQueryData(dashboardQueryOptions(data.user.id));
+    return { userId: data.user.id, email: data.user.email ?? null };
+  },
+  errorComponent: DashboardError,
+  notFoundComponent: () => <EmptyState />,
   component: DashboardPage,
 });
 
@@ -74,6 +85,7 @@ type HistoryReport = {
   risk_level: string;
   patient_name: string | null;
   created_at: string;
+  status?: string;
 };
 
 
@@ -96,50 +108,38 @@ const STATUS_HEX: Record<ClinicalStatus | "unavailable", string> = {
   abnormal: "#EF4444",
 };
 
+function DashboardError() {
+  const router = useRouter();
+  return <section className="mx-auto max-w-7xl px-6 py-10" role="alert"><h1 className="font-display text-2xl">Dashboard unavailable</h1><p className="my-4 text-muted-foreground">Your saved records could not be loaded.</p><Button onClick={() => router.invalidate()}>Try again</Button></section>;
+}
+
 function DashboardPage() {
-  const [stored, setStored] = useState<Stored | null>(null);
-  const [pose, setPose] = useState<PoseAnalysis | null>(null);
+  const { userId, email } = Route.useLoaderData();
+  const { analysis } = Route.useSearch();
+  const recordsQuery = useSuspenseQuery(dashboardQueryOptions(userId));
+  const records = recordsQuery.data;
+  const selectedRun = analysis ? records.runs.find((r) => r.id === analysis) : records.runs.find((r) => r.gait_results.length > 0);
+  const selected = savedDashboardResult(selectedRun, records.subjects);
+  const stored = selected?.stored ?? null;
+  const pose = selected?.pose ?? null;
   const [patientName, setPatientName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [savedId, setSavedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [email, setEmail] = useState<string | null>(null);
   const navigate = useNavigate();
   const reportRef = useRef<HTMLDivElement>(null);
-
   const save = useServerFn(saveReport);
-  const list = useServerFn(listReports);
-
-  const historyQuery = useQuery({
-    queryKey: ["reports"],
-    queryFn: () => list(),
+  useEffect(() => {
+    setPatientName(stored?.patient_name ?? "");
+    setAge(stored?.patient_age ?? "");
+    setGender(stored?.patient_gender ?? "");
+    setSavedId(null);
+  }, [selectedRun?.id, stored?.patient_name, stored?.patient_age, stored?.patient_gender]);
+  const history: HistoryReport[] = records.runs.map((run) => {
+    const result = run.gait_results[0]?.result_payload as unknown as AnalysisResult | null;
+    return { id: run.analysis_code ?? run.id, kind: run.recordings?.modality ?? "gait", mode: run.analysis_mode ?? "", probability: result?.probability ?? null, confidence: result?.confidence ?? null, risk_level: result?.riskLevel ?? "Not available", patient_name: null, created_at: run.started_at, status: run.status };
   });
-
-  useEffect(() => {
-    setPose(readPoseAnalysis());
-  }, []);
-
-  useEffect(() => {
-    const raw = sessionStorage.getItem("latestResult");
-    if (raw) {
-      try {
-        const s = JSON.parse(raw) as Stored;
-        if (s.result.kind === "gait") {
-          const rawEngine = sessionStorage.getItem("latestEngine");
-          try {
-            const engine = rawEngine ? JSON.parse(rawEngine) as EngineOutput : null;
-            s.result = engine ? analysisFromEngine(engine, s.result.mode) : unavailableGaitAnalysis(s.result.mode);
-          } catch { s.result = unavailableGaitAnalysis(s.result.mode); }
-        }
-        setStored(s);
-        if (s.patient_name) setPatientName(s.patient_name);
-        if (s.patient_age) setAge(s.patient_age);
-        if (s.patient_gender) setGender(s.patient_gender);
-      } catch { /* ignore */ }
-    }
-    supabase.auth.getUser().then(({ data }) => setEmail(data.user?.email ?? null));
-  }, []);
 
   async function onSave() {
     if (!stored) return;
@@ -165,7 +165,7 @@ function DashboardPage() {
           recording_condition: (stored as { recording_condition?: string }).recording_condition || undefined,
           notes: (stored as { notes?: string }).notes || undefined,
           analysis_code: stored.analysis_id,
-          analysis_run_id: (stored as { run_id?: string | null }).run_id || undefined,
+          analysis_run_id: selectedRun?.id,
           analysis_timestamp: stored.analysis_timestamp,
           versions: ANALYSIS_VERSIONS as unknown as Record<string, string | null>,
           pose: pose
@@ -182,8 +182,7 @@ function DashboardPage() {
         },
       });
       setSavedId(id);
-      historyQuery.refetch();
-      sessionStorage.removeItem("latestResult");
+      await recordsQuery.refetch();
       toast.success("Report saved to your history");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to save");
@@ -234,11 +233,12 @@ function DashboardPage() {
 
       <DashboardOverview
         stored={stored}
-        history={(historyQuery.data ?? []) as HistoryReport[]}
-        loading={historyQuery.isLoading}
+        history={history}
+        loading={false}
       />
 
-      {!stored && !savedId && <EmptyState />}
+      <SavedRecords {...records} selected={selectedRun?.id} onSelect={(id) => navigate({ to: "/dashboard", search: { analysis: id } })} />
+      {!stored && <div className="mt-8"><EmptyState />{selectedRun && <p className="mt-3 text-sm text-muted-foreground">{STATUS_LABEL[selectedRun.status] ?? selectedRun.status}{selectedRun.error_message ? ` — ${selectedRun.error_message}` : " — No saved result is available for this analysis."}</p>}</div>}
 
       {stored && (
         <div ref={reportRef} className="mt-8 space-y-4">
@@ -380,7 +380,7 @@ function DashboardPage() {
           {/* Gait results visualization */}
           {stored.result.kind === "gait" && <div className="glass rounded-2xl p-6">
             <GaitVisualization result={stored.result} pose={pose} />
-            <TraceableParameters />
+            <TraceableParameters key={selectedRun?.id} engine={selected?.engine ?? null} />
           </div>}
 
           {/* MediaPipe pose analysis (real landmark geometry) */}
@@ -467,7 +467,7 @@ function DashboardOverview({
   const trendData = realTrend;
   const latestReport = history[0];
   const metricCount = stored?.result.parameters.filter((p) => p.patient != null).length ?? 0;
-  const completedCount = history.length + (stored ? 1 : 0);
+  const completedCount = history.filter((r) => ["complete", "completed", "completed_with_warnings"].includes(r.status ?? "")).length;
   const quality = stored?.result.qualityScore;
   const currentStatus = stored
     ? `${stored.result.parameters.filter((parameter) => parameter.status === "abnormal" || parameter.status === "borderline").length} features outside reference range`
@@ -534,7 +534,7 @@ function DashboardOverview({
               <Activity className="h-4 w-4 text-cyan" />
             </div>
             <div>
-              <div className="text-sm font-medium">{stored ? "Current session complete" : latestReport ? "Saved analysis activity" : "Ready for analysis"}</div>
+              <div className="text-sm font-medium">{stored ? "Saved result" : latestReport ? "Saved analysis activity" : "Ready for analysis"}</div>
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{currentStatus}</p>
             </div>
           </div>
@@ -579,7 +579,7 @@ function DashboardOverview({
           </div>
           {loading && <div className="py-8 text-center text-sm text-muted-foreground">Loading analyses…</div>}
           {!loading && history.length === 0 && (
-            <div className="py-8 text-center text-sm text-muted-foreground">No saved analyses yet. Complete and save an analysis to build history.</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">No saved analyses yet.</div>
           )}
           {history.length > 0 && (
             <div className="mt-4 overflow-x-auto">
@@ -595,12 +595,12 @@ function DashboardOverview({
                 <tbody>
                   {history.slice(0, 5).map((report) => (
                     <tr key={report.id} className="border-t border-border/50">
-                      <td className="py-3 font-mono text-xs">{shortAnalysisId(report.id)}</td>
+                      <td className="py-3 font-mono text-xs">{report.id}</td>
                       <td className="py-3 text-xs text-muted-foreground">{new Date(report.created_at).toLocaleDateString()}</td>
                       <td className="py-3">{titleCase(report.kind)}</td>
                       <td className="py-3 text-right">
                         <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/5 px-2 py-0.5 text-xs text-success">
-                          <CheckCircle2 className="h-3 w-3" /> Complete
+                          {STATUS_LABEL[report.status ?? ""] ?? report.status}
                         </span>
                       </td>
                     </tr>
@@ -662,7 +662,7 @@ function DemoBadge() {
 function formatLatestDetail(item: Stored | HistoryReport | undefined) {
   if (!item) return "No saved result for this modality";
   if ("result" in item) {
-    return `${item.result.parameters.length} measured features · ${item.analysis_timestamp ? new Date(item.analysis_timestamp).toLocaleDateString() : "Current session"}`;
+    return `${item.result.parameters.filter((p) => p.patient != null).length} available features · ${item.analysis_timestamp ? new Date(item.analysis_timestamp).toLocaleDateString() : "Current session"}`;
   }
   return `${new Date(item.created_at).toLocaleDateString()} · ${titleCase(item.mode)} protocol`;
 }
@@ -681,9 +681,9 @@ function EmptyState() {
       <div className="mx-auto h-14 w-14 rounded-2xl bg-primary/15 grid place-items-center glow-primary">
         <Sparkles className="h-6 w-6 text-cyan" />
       </div>
-      <h2 className="mt-4 font-display text-2xl font-semibold">No analysis loaded</h2>
+      <h2 className="mt-4 font-display text-2xl font-semibold">No saved result available</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Go back to the home page and upload a walking video to see clinical results here.
+        Complete an analysis to view its saved results here.
       </p>
       <a href="/#analyze" className="mt-6 inline-flex rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground glow-primary hover:brightness-110">
         Start analysis
