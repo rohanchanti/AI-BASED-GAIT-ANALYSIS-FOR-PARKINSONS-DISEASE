@@ -234,14 +234,12 @@ export function preprocessPoseFrames(
     }
     const present = new Set(landmarks.map((l) => l.name));
     let confSum = 0;
-    let confN = 0;
     for (const g of GAIT_LANDMARKS) {
       gaitSamplesTotal++;
       const lm = landmarks.find((l) => l.name === g);
       if (lm) {
         gaitSamplesPresent++;
         confSum += lm.visibility;
-        confN++;
       }
     }
     const valid =
