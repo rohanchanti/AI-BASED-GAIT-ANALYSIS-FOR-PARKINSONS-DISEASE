@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Pipeline only: preserve missing landmarks and reject failed visibility, confidence, duration and gait-cycle checks with needs_better_video and reasons; verify regression tests.
+
 - [x] Complete and verify the existing dashboard presentation improvements.
 - [x] Improve only the Reports section with a representative multimodal sample report, clear DEMO DATA labels, existing visualizations, interpretation, disclaimer, and existing view/export actions.
 - [x] Verify the affected dashboard and reports experiences.
