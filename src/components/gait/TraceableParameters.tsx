@@ -18,17 +18,19 @@ const BADGE: Record<ParamStatus, string> = {
   unavailable: "border-border text-muted-foreground",
 };
 
-export function TraceableParameters() {
-  const [e, setE] = useState<Stored | null>(null);
+export function TraceableParameters({ engine }: { engine?: EngineOutput | null } = {}) {
+  const [sessionEngine, setE] = useState<Stored | null>(null);
+  const e = engine === undefined ? sessionEngine : engine as Stored | null;
   const [open, setOpen] = useState<string | null>(null);
   useEffect(() => {
+    if (engine !== undefined) return;
     try {
       const raw = sessionStorage.getItem("latestEngine");
       setE(raw ? JSON.parse(raw) : null);
     } catch {
       setE(null);
     }
-  }, []);
+  }, [engine]);
   if (!e) return null;
   const defs = new Map(PARAMETER_DEFINITIONS.map((d) => [d.key, d]));
   const series = e.stepSeries ?? [];

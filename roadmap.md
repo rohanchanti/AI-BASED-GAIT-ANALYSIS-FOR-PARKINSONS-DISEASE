@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Dashboard only: database-backed user subjects, visits and analyses, empty states and saved-result restoration; signed-in browser verified 10 subjects, 6 visits, 5 runs and legacy saved results surviving refresh and sign-out/re-login.
+
 - [x] Pipeline only: ankle-event timing, stride variability and symmetry with saved units/methods; calibration-gated spatial measures; synthetic ankle-to-storage regression checks passed. Real-video processing and a fresh database insert were not exercised.
 
 - [x] Pipeline only: preserve missing landmarks and reject failed visibility, confidence, duration and gait-cycle checks with needs_better_video and reasons; 67 automated checks passed. Real-video end-to-end processing not exercised in this task.
