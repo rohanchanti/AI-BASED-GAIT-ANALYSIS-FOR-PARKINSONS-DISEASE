@@ -30,7 +30,7 @@
  */
 import type { GaitEvent } from "@/types/gait";
 import type { PoseFrame } from "@/types/pose";
-import { indexLandmarks, meanVisibility, reliable } from "./poseLandmarkUtils";
+import { indexLandmarks, reliable } from "./poseLandmarkUtils";
 import { toBodyRelative } from "./temporalFilter";
 import { DEFAULT_POSE_CONFIG, type PosePipelineConfig } from "./poseConfig";
 
@@ -50,19 +50,15 @@ function buildSignal(
 ): Point[] {
   const pts: Point[] = [];
   for (const f of frames) {
+    if (f.valid === false) continue;
     const map = indexLandmarks(f.landmarks);
     const rel = toBodyRelative(f.landmarks);
-    const heel = reliable(map, `${side}_heel`, threshold);
-    const toe = reliable(map, `${side}_foot_index`, threshold);
     const ankle = reliable(map, `${side}_ankle`, threshold);
-    if (!rel || !ankle || (!heel && !toe)) continue;
+    if (!rel || !ankle) continue;
 
     // Body-relative foot x (already pelvis-centred and torso-normalized).
-    const relHeel = heel ? rel.get(`${side}_heel`) : null;
-    const relToe = toe ? rel.get(`${side}_foot_index`) : null;
     const relAnkle = rel.get(`${side}_ankle`);
-    const xs = [relHeel?.x, relToe?.x].filter((v): v is number => v != null);
-    const v = xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : relAnkle?.x;
+    const v = relAnkle?.x;
     if (v == null || !isFinite(v)) continue;
 
     pts.push({
@@ -70,7 +66,7 @@ function buildSignal(
       frame: f.frameNumber,
       v,
       dv: 0,
-      conf: meanVisibility(map, [`${side}_heel`, `${side}_ankle`, `${side}_foot_index`]),
+      conf: ankle.visibility,
     });
   }
   return pts;
@@ -171,9 +167,17 @@ export function detectGaitEvents(
   for (const side of ["left", "right"] as const) {
     const raw = buildSignal(frames, side, threshold);
     if (raw.length < 8) continue;
-    const pts = withDerivative(
-      smooth(raw).map((p) => ({ ...p, v: p.v * travelSign })),
-    );
+    // Never smooth or detect extrema across rejected/missing frame gaps.
+    const segments: Point[][] = [];
+    for (const p of raw) {
+      const last = segments[segments.length - 1];
+      const previous = last?.[last.length - 1];
+      if (!previous || p.frame !== previous.frame + 1) segments.push([p]);
+      else last.push(p);
+    }
+    for (const segment of segments) {
+    if (segment.length < 8) continue;
+    const pts = withDerivative(smooth(segment).map((p) => ({ ...p, v: p.v * travelSign })));
     const sd = stdev(pts.map((p) => p.v));
     // Body-relative units: torso lengths. Below ~2% of a torso length there is
     // no meaningful foot oscillation to detect.
@@ -197,6 +201,7 @@ export function detectGaitEvents(
         type: "toe_off",
         confidence: +p.conf.toFixed(3),
       });
+    }
     }
   }
 

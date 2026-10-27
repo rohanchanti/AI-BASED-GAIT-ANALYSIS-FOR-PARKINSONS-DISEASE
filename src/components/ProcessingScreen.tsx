@@ -184,7 +184,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           }
           persistPoseAnalysis(pose);
           const engine = {
-            ...computeGaitParameters({ events: pose.events, walkingDistanceM: job?.create?.walkingDistanceM ?? null, durationSec: pose.video.durationSec }),
+            ...computeGaitParameters({ events: pose.events, walkingDistanceM: job?.create?.walkingDistanceM ?? null, durationSec: pose.video.durationSec, calibration: pose.calibration }),
             quality: qualitySummary(pose),
             eventMethod: EVENT_METHOD,
           };

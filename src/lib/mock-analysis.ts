@@ -365,7 +365,7 @@ export function analysisFromEngine(engine: import("@/lib/gait-engine/parameters"
   const keys: Record<string, string> = { cadence: "cadence", step_time: "stepTime", walking_speed: "walkingSpeed", step_length: "stepLength", stride_length: "strideLength", turning_time: "turnDuration" };
   result.parameters = result.parameters.map((row) => {
     const parameter = engine.parameters.find((p) => p.key === keys[row.key]);
-    return { ...row, patient: parameter?.value ?? null };
+    return { ...row, patient: parameter?.value ?? null, interpretation: parameter?.value == null ? parameter?.reason ?? row.interpretation : row.interpretation };
   });
   return result;
 }

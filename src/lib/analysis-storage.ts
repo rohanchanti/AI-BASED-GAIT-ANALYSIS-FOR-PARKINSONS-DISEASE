@@ -7,7 +7,7 @@ export function withFeatureMethods(engine: any) {
     ...engine,
     parameters: engine.parameters.map((p: any) => {
       const definition = PARAMETER_DEFINITIONS.find((d) => d.key === p.key);
-      return { ...p, unit: definition?.unit ?? "", method: definition ? `${definition.formula}; inputs: ${definition.inputs}` : "Method not recorded" };
+      return { ...p, unit: p.unit ?? definition?.unit ?? "", method: p.method ?? (definition ? `${definition.formula}; inputs: ${definition.inputs}` : "Method not recorded") };
     }),
   };
 }
