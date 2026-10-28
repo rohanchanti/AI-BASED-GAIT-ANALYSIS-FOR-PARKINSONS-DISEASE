@@ -7,6 +7,9 @@ import { listReports, deleteReport } from "@/lib/reports.functions";
 import { exportPNG } from "@/lib/export-report";
 import { generateMockAnalysis } from "@/lib/mock-analysis";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { dashboardQueryOptions } from "@/lib/dashboard-data";
+import { savedReportContent, savedReportPdf } from "@/lib/saved-analysis-pdf";
 import { Trash2, FileText, Eye, Download, Footprints, ScanFace, Mic2, CalendarDays, UserRound } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/reports")({
@@ -33,6 +36,23 @@ function ReportsPage() {
   const demoFace = useMemo(() => generateMockAnalysis("facial", "quick", "DEMO-001-face-report"), []);
 
   const { data, isLoading } = useQuery({ queryKey: ["reports"], queryFn: () => list() });
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null });
+  const saved = useQuery({ ...dashboardQueryOptions(me ?? ""), enabled: !!me });
+  const savedRuns = (saved.data?.runs ?? []).filter((r) => r.gait_results && ["complete", "completed", "completed_with_warnings"].includes(r.status));
+
+  function downloadSavedPdf(runId: string) {
+    const records = saved.data;
+    const run = records?.runs.find((r) => r.id === runId);
+    if (!records || !run) return;
+    const visit = records.visits.find((v) => v.id === run.recordings?.visit_id);
+    const subject = records.subjects.find((s) => s.id === (run.recordings?.subject_id ?? visit?.subject_id));
+    try {
+      const content = savedReportContent(run, visit, subject);
+      savedReportPdf(content).save(`neurostride-${content.codedId}-${content.date}.pdf`);
+    } catch {
+      toast.error("PDF could not be generated");
+    }
+  }
   const remove = useMutation({
     mutationFn: (id: string) => del({ data: { id } }),
     onSuccess: () => {
@@ -168,6 +188,27 @@ function ReportsPage() {
               This system is intended for research and screening support and is not a standalone diagnostic system.
             </div>
           </div>
+        )}
+      </div>
+
+      <div className="mt-8 glass rounded-2xl p-5 sm:p-6">
+        <h2 className="font-display text-xl font-semibold">Saved analyses</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Download a PDF built from the saved analysis record. Automated outputs are not a diagnosis.</p>
+        {saved.isLoading || !me ? (
+          <p className="mt-4 text-sm text-muted-foreground">Loading…</p>
+        ) : savedRuns.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">No completed analyses saved yet.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-border/60">
+            {savedRuns.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
+                <span>{r.analysis_code ?? r.id.slice(0, 8)} · {new Date(r.completed_at ?? r.started_at).toLocaleDateString()} · {r.recordings?.protocol ?? r.analysis_mode ?? "Protocol not recorded"}</span>
+                <button onClick={() => downloadSavedPdf(r.id)} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/50">
+                  <Download className="h-3.5 w-3.5" /> Download PDF
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
