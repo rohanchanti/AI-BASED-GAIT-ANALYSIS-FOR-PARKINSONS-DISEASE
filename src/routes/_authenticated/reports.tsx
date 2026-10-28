@@ -10,6 +10,14 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { dashboardQueryOptions } from "@/lib/dashboard-data";
 import { savedReportContent, savedReportPdf } from "@/lib/saved-analysis-pdf";
+import { dataDictionaryCsv, deidentifiedCsv, deidentifiedJson, deidentifiedRows } from "@/lib/saved-analysis-export";
+
+function downloadText(text: string, name: string, type: string) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
 import { Trash2, FileText, Eye, Download, Footprints, ScanFace, Mic2, CalendarDays, UserRound } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/reports")({
@@ -39,6 +47,17 @@ function ReportsPage() {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? null });
   const saved = useQuery({ ...dashboardQueryOptions(me ?? ""), enabled: !!me });
   const savedRuns = (saved.data?.runs ?? []).filter((r) => r.gait_results && ["complete", "completed", "completed_with_warnings"].includes(r.status));
+
+  function exportSaved(runId: string, kind: "csv" | "json") {
+    const records = saved.data;
+    const run = records?.runs.find((r) => r.id === runId);
+    if (!records || !run) return;
+    const visit = records.visits.find((v) => v.id === run.recordings?.visit_id);
+    const subject = records.subjects.find((s) => s.id === (run.recordings?.subject_id ?? visit?.subject_id));
+    const base = `neurostride-${subject?.subject_code ?? "uncoded"}-${run.analysis_code ?? run.id.slice(0, 8)}`;
+    if (kind === "csv") downloadText(deidentifiedCsv(deidentifiedRows(run, visit, subject)), `${base}.csv`, "text/csv;charset=utf-8");
+    else downloadText(JSON.stringify(deidentifiedJson(run, visit, subject), null, 2), `${base}.json`, "application/json");
+  }
 
   function downloadSavedPdf(runId: string) {
     const records = saved.data;
@@ -193,7 +212,12 @@ function ReportsPage() {
 
       <div className="mt-8 glass rounded-2xl p-5 sm:p-6">
         <h2 className="font-display text-xl font-semibold">Saved analyses</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Download a PDF built from the saved analysis record. Automated outputs are not a diagnosis.</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="mt-1 text-sm text-muted-foreground">Download a PDF, or de-identified CSV/JSON (coded ID only, no names). Automated outputs are not a diagnosis.</p>
+          <button onClick={() => downloadText(dataDictionaryCsv(), "data_dictionary.csv", "text/csv;charset=utf-8")} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/50">
+            <Download className="h-3.5 w-3.5" /> data_dictionary.csv
+          </button>
+        </div>
         {saved.isLoading || !me ? (
           <p className="mt-4 text-sm text-muted-foreground">Loading…</p>
         ) : savedRuns.length === 0 ? (
@@ -203,9 +227,17 @@ function ReportsPage() {
             {savedRuns.map((r) => (
               <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                 <span>{r.analysis_code ?? r.id.slice(0, 8)} · {new Date(r.completed_at ?? r.started_at).toLocaleDateString()} · {r.recordings?.protocol ?? r.analysis_mode ?? "Protocol not recorded"}</span>
-                <button onClick={() => downloadSavedPdf(r.id)} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/50">
-                  <Download className="h-3.5 w-3.5" /> Download PDF
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => downloadSavedPdf(r.id)} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/50">
+                    <Download className="h-3.5 w-3.5" /> PDF
+                  </button>
+                  <button onClick={() => exportSaved(r.id, "csv")} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/50">
+                    <Download className="h-3.5 w-3.5" /> CSV
+                  </button>
+                  <button onClick={() => exportSaved(r.id, "json")} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/50">
+                    <Download className="h-3.5 w-3.5" /> JSON
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
