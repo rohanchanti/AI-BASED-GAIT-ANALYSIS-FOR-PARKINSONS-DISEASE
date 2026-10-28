@@ -78,6 +78,13 @@
       "when": 1793084137068,
       "tag": "0010_legacy_gait_feature_provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793196234242,
+      "tag": "0011_user_roles_grants",
+      "breakpoints": true
     }
   ]
 }
