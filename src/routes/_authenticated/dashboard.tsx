@@ -33,6 +33,7 @@ import { AIAnalysisResults } from "@/components/research/AIAnalysisResults";
 import { FacialAnalysisResults } from "@/components/facial/FacialAnalysisResults";
 import type { PoseAnalysis } from "@/types/gait";
 import { toast } from "sonner";
+import { logAccess } from "@/lib/audit.functions";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
@@ -129,6 +130,11 @@ function DashboardPage() {
   const [savedId, setSavedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
+  const audit = useServerFn(logAccess);
+  const viewedId = selectedRun?.id ?? null;
+  useEffect(() => {
+    if (viewedId) audit({ data: { action: "view", entity: "analysis_runs", entityId: viewedId } }).catch(() => {});
+  }, [viewedId]);
   const reportRef = useRef<HTMLDivElement>(null);
   const save = useServerFn(saveReport);
   useEffect(() => {
