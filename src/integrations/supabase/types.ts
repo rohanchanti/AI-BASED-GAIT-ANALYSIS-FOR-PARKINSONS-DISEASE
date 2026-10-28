@@ -178,6 +178,51 @@ export type Database = {
           },
         ]
       }
+      clinician_interpretations: {
+        Row: {
+          author_id: string
+          comments: string | null
+          created_at: string
+          id: string
+          interpretation: string
+          run_id: string
+          supersedes: string | null
+        }
+        Insert: {
+          author_id?: string
+          comments?: string | null
+          created_at?: string
+          id?: string
+          interpretation: string
+          run_id: string
+          supersedes?: string | null
+        }
+        Update: {
+          author_id?: string
+          comments?: string | null
+          created_at?: string
+          id?: string
+          interpretation?: string
+          run_id?: string
+          supersedes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinician_interpretations_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "analysis_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clinician_interpretations_supersedes_fkey"
+            columns: ["supersedes"]
+            isOneToOne: false
+            referencedRelation: "clinician_interpretations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clinician_reviews: {
         Row: {
           created_at: string
