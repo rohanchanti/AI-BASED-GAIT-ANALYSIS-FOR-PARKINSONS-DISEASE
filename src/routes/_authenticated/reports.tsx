@@ -7,6 +7,7 @@ import { listReports, deleteReport } from "@/lib/reports.functions";
 import { exportPNG } from "@/lib/export-report";
 import { generateMockAnalysis } from "@/lib/mock-analysis";
 import { toast } from "sonner";
+import { logAccess } from "@/lib/audit.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { dashboardQueryOptions } from "@/lib/dashboard-data";
 import { savedReportContent, savedReportPdf } from "@/lib/saved-analysis-pdf";
@@ -38,6 +39,9 @@ function ReportsPage() {
   const list = useServerFn(listReports);
   const del = useServerFn(deleteReport);
   const qc = useQueryClient();
+  const audit = useServerFn(logAccess);
+  const logExport = (entity: "analysis_runs" | "data_dictionary", entityId: string | null, format: "pdf" | "csv" | "json") =>
+    audit({ data: { action: "export", entity, entityId, format } }).catch(() => {});
   const [showDemoReport, setShowDemoReport] = useState(false);
   const demoReportRef = useRef<HTMLDivElement>(null);
   const demoGait = useMemo(() => generateMockAnalysis("gait", "normal", "DEMO-001-gait-report"), []);
@@ -55,6 +59,7 @@ function ReportsPage() {
     const visit = records.visits.find((v) => v.id === run.recordings?.visit_id);
     const subject = records.subjects.find((s) => s.id === (run.recordings?.subject_id ?? visit?.subject_id));
     const base = `neurostride-${subject?.subject_code ?? "uncoded"}-${run.analysis_code ?? run.id.slice(0, 8)}`;
+    logExport("analysis_runs", run.id, kind);
     if (kind === "csv") downloadText(deidentifiedCsv(deidentifiedRows(run, visit, subject)), `${base}.csv`, "text/csv;charset=utf-8");
     else downloadText(JSON.stringify(deidentifiedJson(run, visit, subject), null, 2), `${base}.json`, "application/json");
   }
@@ -67,6 +72,7 @@ function ReportsPage() {
     const subject = records.subjects.find((s) => s.id === (run.recordings?.subject_id ?? visit?.subject_id));
     try {
       const content = savedReportContent(run, visit, subject);
+      logExport("analysis_runs", run.id, "pdf");
       savedReportPdf(content).save(`neurostride-${content.codedId}-${content.date}.pdf`);
     } catch {
       toast.error("PDF could not be generated");
@@ -214,7 +220,7 @@ function ReportsPage() {
         <h2 className="font-display text-xl font-semibold">Saved analyses</h2>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <p className="mt-1 text-sm text-muted-foreground">Download a PDF, or de-identified CSV/JSON (coded ID only, no names). Automated outputs are not a diagnosis.</p>
-          <button onClick={() => downloadText(dataDictionaryCsv(), "data_dictionary.csv", "text/csv;charset=utf-8")} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/50">
+          <button onClick={() => { logExport("data_dictionary", null, "csv"); downloadText(dataDictionaryCsv(), "data_dictionary.csv", "text/csv;charset=utf-8"); }} className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-xs hover:border-primary/50">
             <Download className="h-3.5 w-3.5" /> data_dictionary.csv
           </button>
         </div>
