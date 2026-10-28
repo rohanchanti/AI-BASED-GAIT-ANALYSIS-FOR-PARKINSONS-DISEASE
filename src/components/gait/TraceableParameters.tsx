@@ -11,12 +11,22 @@ type Stored = EngineOutput & {
   eventMethod?: { name: string; description: string; thresholds: string; minimumQuality: string; limitations: string };
 };
 
-const BADGE: Record<ParamStatus, string> = {
+type DisplayStatus = "measured" | "estimated" | "unavailable" | "unreliable";
+const displayStatus = (s: ParamStatus): DisplayStatus => (s === "experimental" ? "unreliable" : s);
+const BADGE: Record<DisplayStatus, string> = {
   measured: "border-success/40 text-success",
   estimated: "border-cyan/40 text-cyan",
-  experimental: "border-primary/40 text-primary",
+  unreliable: "border-warning/50 text-warning",
   unavailable: "border-border text-muted-foreground",
 };
+function StatusBadge({ status }: { status: ParamStatus }) {
+  const s = displayStatus(status);
+  return <span className={`rounded-full border px-2 py-0.5 text-[11px] ${BADGE[s]}`}>{s}</span>;
+}
+const PAIRS = [
+  { label: "Step time", left: "stepTimeLeft", right: "stepTimeRight" },
+  { label: "Stride time", left: "strideTimeLeft", right: "strideTimeRight" },
+];
 
 export function TraceableParameters({ engine }: { engine?: EngineOutput | null } = {}) {
   const [sessionEngine, setE] = useState<Stored | null>(null);
@@ -36,6 +46,18 @@ export function TraceableParameters({ engine }: { engine?: EngineOutput | null }
   const series = e.stepSeries ?? [];
   const chart = series.map((s) => ({ t: s.t, left: s.side === "left" ? s.stepTime : null, right: s.side === "right" ? s.stepTime : null }));
   const q = e.quality;
+  const byKey = new Map(e.parameters.map((p) => [p.key, p]));
+  const unitOf = (k: string) => byKey.get(k)?.unit || defs.get(k)?.unit || "";
+  const fmt = (k: string) => {
+    const p = byKey.get(k);
+    if (!p || p.value == null) return "Not available";
+    const u = unitOf(k);
+    return u && u !== "—" ? `${p.value} ${u}` : `${p.value}`;
+  };
+  const warnings = [
+    ...(q?.warnings ?? []),
+    ...e.parameters.filter((p) => p.status === "experimental").map((p) => `${defs.get(p.key)?.name ?? p.key}: unreliable${p.reason ? ` — ${p.reason}` : ""}`),
+  ];
 
   return (
     <section className="glass rounded-2xl p-6 space-y-6">
@@ -45,6 +67,52 @@ export function TraceableParameters({ engine }: { engine?: EngineOutput | null }
         <p className="mt-1 text-xs text-muted-foreground">
           Calculated from this recording's detected events. Events are algorithmic estimates, not ground truth. No reference ranges are shown: none are documented for this video method and population.
         </p>
+      </div>
+
+      {warnings.length > 0 && (
+        <div role="alert" className="rounded-xl border border-warning/50 bg-warning/10 p-3 text-xs">
+          <div className="font-medium text-warning">Quality warnings</div>
+          <ul className="mt-1 list-disc pl-4 text-muted-foreground space-y-0.5">
+            {warnings.map((w, i) => <li key={i}>{w}</li>)}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-2 text-[11px] text-muted-foreground items-center">
+        <span>Status:</span>
+        {(["measured", "estimated", "unreliable", "unavailable"] as const).map((s) => (
+          <span key={s} className={`rounded-full border px-2 py-0.5 ${BADGE[s]}`}>{s}</span>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto">
+        <div className="text-sm font-medium mb-2">Left–right comparison</div>
+        <table className="w-full text-sm">
+          <thead className="text-xs text-muted-foreground">
+            <tr className="text-left"><th className="py-2 pr-3">Parameter</th><th className="pr-3">Left</th><th className="pr-3">Right</th><th className="pr-3">Difference</th></tr>
+          </thead>
+          <tbody>
+            {PAIRS.map((pr) => {
+              const l = byKey.get(pr.left); const r = byKey.get(pr.right);
+              const diff = l?.value != null && r?.value != null ? `${Math.abs(l.value - r.value).toFixed(3)} ${unitOf(pr.left)}` : "Not available";
+              return (
+                <tr key={pr.label} className="border-t border-border/40">
+                  <td className="py-2 pr-3">{pr.label}</td>
+                  <td className="pr-3"><span className="font-mono">{fmt(pr.left)}</span> {l && <StatusBadge status={l.status} />}</td>
+                  <td className="pr-3"><span className="font-mono">{fmt(pr.right)}</span> {r && <StatusBadge status={r.status} />}</td>
+                  <td className="pr-3 font-mono">{diff}</td>
+                </tr>
+              );
+            })}
+            {byKey.has("stepTimeSymmetry") && (
+              <tr className="border-t border-border/40">
+                <td className="py-2 pr-3">Left-right symmetry</td>
+                <td colSpan={2} className="pr-3"><span className="font-mono">{fmt("stepTimeSymmetry")}</span> <StatusBadge status={byKey.get("stepTimeSymmetry")!.status} /></td>
+                <td className="text-xs text-muted-foreground">100% = equal timing</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       <div className="overflow-x-auto">
@@ -63,8 +131,8 @@ export function TraceableParameters({ engine }: { engine?: EngineOutput | null }
                         {d?.name ?? p.key}
                       </button>
                     </td>
-                    <td className="pr-3 font-mono">{p.value == null ? "—" : `${p.value} ${d?.unit ?? ""}`}</td>
-                    <td className="pr-3"><span className={`rounded-full border px-2 py-0.5 text-[11px] ${BADGE[p.status]}`}>{p.status}</span></td>
+                    <td className="pr-3 font-mono">{fmt(p.key)}</td>
+                    <td className="pr-3"><StatusBadge status={p.status} /></td>
                     <td className="pr-3">{p.n}</td>
                     <td className="text-xs text-muted-foreground">{p.reason ?? d?.validation}</td>
                   </tr>
