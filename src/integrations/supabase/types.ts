@@ -650,6 +650,243 @@ export type Database = {
           },
         ]
       }
+      reference_datasets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          licence: string
+          name: string
+          parameters: Json
+          pipeline_version: string
+          source_url: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          licence: string
+          name: string
+          parameters?: Json
+          pipeline_version: string
+          source_url: string
+          version: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          licence?: string
+          name?: string
+          parameters?: Json
+          pipeline_version?: string
+          source_url?: string
+          version?: string
+        }
+        Relationships: []
+      }
+      reference_features: {
+        Row: {
+          dataset_id: string
+          duration_s: number | null
+          file_name: string
+          group_name: string | null
+          id: string
+          n_excluded_left: number | null
+          n_excluded_right: number | null
+          n_strides_left: number | null
+          n_strides_right: number | null
+          note: string | null
+          participant_id: string
+          status: string
+          stride_time_left_cv_pct: number | null
+          stride_time_left_mean_s: number | null
+          stride_time_left_sd_s: number | null
+          stride_time_right_cv_pct: number | null
+          stride_time_right_mean_s: number | null
+          stride_time_right_sd_s: number | null
+          study: string | null
+          subject_no: number | null
+          task: string | null
+          walk_no: number | null
+        }
+        Insert: {
+          dataset_id: string
+          duration_s?: number | null
+          file_name: string
+          group_name?: string | null
+          id?: string
+          n_excluded_left?: number | null
+          n_excluded_right?: number | null
+          n_strides_left?: number | null
+          n_strides_right?: number | null
+          note?: string | null
+          participant_id: string
+          status: string
+          stride_time_left_cv_pct?: number | null
+          stride_time_left_mean_s?: number | null
+          stride_time_left_sd_s?: number | null
+          stride_time_right_cv_pct?: number | null
+          stride_time_right_mean_s?: number | null
+          stride_time_right_sd_s?: number | null
+          study?: string | null
+          subject_no?: number | null
+          task?: string | null
+          walk_no?: number | null
+        }
+        Update: {
+          dataset_id?: string
+          duration_s?: number | null
+          file_name?: string
+          group_name?: string | null
+          id?: string
+          n_excluded_left?: number | null
+          n_excluded_right?: number | null
+          n_strides_left?: number | null
+          n_strides_right?: number | null
+          note?: string | null
+          participant_id?: string
+          status?: string
+          stride_time_left_cv_pct?: number | null
+          stride_time_left_mean_s?: number | null
+          stride_time_left_sd_s?: number | null
+          stride_time_right_cv_pct?: number | null
+          stride_time_right_mean_s?: number | null
+          stride_time_right_sd_s?: number | null
+          study?: string | null
+          subject_no?: number | null
+          task?: string | null
+          walk_no?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_features_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "reference_datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reference_files: {
+        Row: {
+          dataset_id: string
+          file_name: string
+          id: string
+          matches_official_checksum: boolean | null
+          sha256: string | null
+          size_bytes: number | null
+        }
+        Insert: {
+          dataset_id: string
+          file_name: string
+          id?: string
+          matches_official_checksum?: boolean | null
+          sha256?: string | null
+          size_bytes?: number | null
+        }
+        Update: {
+          dataset_id?: string
+          file_name?: string
+          id?: string
+          matches_official_checksum?: boolean | null
+          sha256?: string | null
+          size_bytes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_files_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "reference_datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reference_subjects: {
+        Row: {
+          age: number | null
+          dataset_id: string
+          group_name: string | null
+          height_m: number | null
+          hoehn_yahr: number | null
+          id: string
+          participant_id: string
+          sex: string | null
+          speed_01: number | null
+          speed_02: number | null
+          speed_03: number | null
+          speed_04: number | null
+          speed_05: number | null
+          speed_06: number | null
+          speed_07: number | null
+          speed_10: number | null
+          study: string | null
+          subject_no: number | null
+          tug_s: number | null
+          updrs: number | null
+          updrs_motor: number | null
+          weight_kg: number | null
+        }
+        Insert: {
+          age?: number | null
+          dataset_id: string
+          group_name?: string | null
+          height_m?: number | null
+          hoehn_yahr?: number | null
+          id?: string
+          participant_id: string
+          sex?: string | null
+          speed_01?: number | null
+          speed_02?: number | null
+          speed_03?: number | null
+          speed_04?: number | null
+          speed_05?: number | null
+          speed_06?: number | null
+          speed_07?: number | null
+          speed_10?: number | null
+          study?: string | null
+          subject_no?: number | null
+          tug_s?: number | null
+          updrs?: number | null
+          updrs_motor?: number | null
+          weight_kg?: number | null
+        }
+        Update: {
+          age?: number | null
+          dataset_id?: string
+          group_name?: string | null
+          height_m?: number | null
+          hoehn_yahr?: number | null
+          id?: string
+          participant_id?: string
+          sex?: string | null
+          speed_01?: number | null
+          speed_02?: number | null
+          speed_03?: number | null
+          speed_04?: number | null
+          speed_05?: number | null
+          speed_06?: number | null
+          speed_07?: number | null
+          speed_10?: number | null
+          study?: string | null
+          subject_no?: number | null
+          tug_s?: number | null
+          updrs?: number | null
+          updrs_motor?: number | null
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_subjects_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "reference_datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           age: number | null
