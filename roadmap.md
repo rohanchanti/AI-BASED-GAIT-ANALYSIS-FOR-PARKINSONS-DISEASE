@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Measure database/run usage and inspect query plans/indexes: Oct 16–29 requested Run credits 0.472459274 (34 worker-days, 1.71 pico hours); removed an identical non-unique audit index, narrowed heartbeat/retry reads (five existing rows: 5,559→2,457 serialized bytes), preserved refresh timing and history; 35 tests/build passed, signed-in jobs/manual refresh/dashboard reload checked. No pg_cron extension; published activity logs unavailable. Query statistics since Sep 22 are cumulative, not a representative traffic window; no credit savings or resize claimed.
+
 - [x] Create four reference-data tables after SQL approval and insert the supplied PhysioNet metadata; database rollback checks verified researcher reads, blocked researcher/clinician writes, admin writes/deletes, anonymous read restriction and feature status validation. Existing tables and UI unchanged.
 
 - [x] Dashboard only: database-backed user subjects, visits and analyses, empty states and saved-result restoration; signed-in browser verified 10 subjects, 6 visits, 5 runs and legacy saved results surviving refresh and sign-out/re-login.
