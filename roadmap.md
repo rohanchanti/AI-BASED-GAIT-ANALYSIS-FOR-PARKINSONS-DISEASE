@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Measure database/run usage, inspect query plans/indexes and scheduled work, fix verified drivers, and verify unchanged results and resource effects.
+
 - [x] Create four reference-data tables after SQL approval and insert the supplied PhysioNet metadata; database rollback checks verified researcher reads, blocked researcher/clinician writes, admin writes/deletes, anonymous read restriction and feature status validation. Existing tables and UI unchanged.
 
 - [x] Dashboard only: database-backed user subjects, visits and analyses, empty states and saved-result restoration; signed-in browser verified 10 subjects, 6 visits, 5 runs and legacy saved results surviving refresh and sign-out/re-login.
