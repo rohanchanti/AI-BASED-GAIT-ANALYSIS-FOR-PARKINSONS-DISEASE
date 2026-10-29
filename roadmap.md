@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Create four reference-data tables and verify role restrictions; insert the supplied PhysioNet metadata only after SQL review (waiting on approval).
+
 - [x] Dashboard only: database-backed user subjects, visits and analyses, empty states and saved-result restoration; signed-in browser verified 10 subjects, 6 visits, 5 runs and legacy saved results surviving refresh and sign-out/re-login.
 
 - [x] Pipeline only: ankle-event timing, stride variability and symmetry with saved units/methods; calibration-gated spatial measures; synthetic ankle-to-storage regression checks passed. Real-video processing and a fresh database insert were not exercised.
