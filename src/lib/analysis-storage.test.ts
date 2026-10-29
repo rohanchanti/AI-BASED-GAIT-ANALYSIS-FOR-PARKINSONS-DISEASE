@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { shouldCreateReanalysis, withFeatureMethods } from "./analysis-storage";
+import { JOB_STATUS_COLUMNS, shouldCreateReanalysis, withFeatureMethods } from "./analysis-storage";
 
 describe("analysis history", () => {
+  it("status checks keep all retry metadata without downloading saved result snapshots", () => {
+    const columns = JOB_STATUS_COLUMNS.split(", ");
+    expect(columns).toEqual(["id", "owner_id", "recording_id", "status", "attempts", "analysis_mode", "model_name", "model_version", "pipeline_version", "feature_pipeline_version", "pose_estimator_version", "platform_version", "preprocessing_config"]);
+    for (const snapshot of ["parameters", "quality_metrics", "quality_report", "*"]) expect(columns).not.toContain(snapshot);
+  });
   it("reanalysis of finished runs creates a new run", () => {
     for (const status of ["complete", "completed", "completed_with_warnings", "failed", "cancelled"])
       expect(shouldCreateReanalysis(status, true)).toBe(true);

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { validateSubjectFields } from "@/lib/subject-validation";
 import { subjectInformationSchema, ACQUISITION_CONSENT_VERSION } from "@/lib/subject-information";
-import { shouldCreateReanalysis, withFeatureMethods } from "@/lib/analysis-storage";
+import { JOB_STATUS_COLUMNS, shouldCreateReanalysis, withFeatureMethods } from "@/lib/analysis-storage";
 import { VIDEO_LIMITS, ALLOWED_MIME, sniffContainer, canTransition, PROTOCOLS, SUCCESS_STATUSES, type JobStatus } from "@/lib/video-config";
 
 const BUCKET = "recordings";
@@ -217,7 +217,7 @@ export const updateJobStatus = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const { data: run, error } = await supabase.from("analysis_runs").select("*").eq("id", data.runId).single();
+    const { data: run, error } = await supabase.from("analysis_runs").select(JOB_STATUS_COLUMNS).eq("id", data.runId).single();
     if (error || !run) throw new Error("Job not found.");
     if (shouldCreateReanalysis(run.status, data.retry)) {
       if (run.attempts >= VIDEO_LIMITS.maxAttempts) return { ok: false, status: run.status, error: "Retry limit reached." };
