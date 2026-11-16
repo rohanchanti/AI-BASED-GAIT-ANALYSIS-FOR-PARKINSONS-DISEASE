@@ -887,6 +887,116 @@ export type Database = {
           },
         ]
       }
+      reference_timing_summaries: {
+        Row: {
+          age: number | null
+          created_at: string
+          dataset_id: string
+          double_support_pct_mean: number | null
+          duration_s: number | null
+          gait_speed_m_s: number | null
+          group_name: string | null
+          height_m: number | null
+          id: string
+          n_excluded: number | null
+          n_strides: number | null
+          note: string | null
+          record_id: string
+          severity_measure: string | null
+          severity_value: number | null
+          sex: string | null
+          stance_left_pct_mean: number | null
+          stance_right_pct_mean: number | null
+          status: string
+          stride_cv_pct: number | null
+          stride_left_cv_pct: number | null
+          stride_left_mean_s: number | null
+          stride_left_sd_s: number | null
+          stride_mean_s: number | null
+          stride_right_cv_pct: number | null
+          stride_right_mean_s: number | null
+          stride_right_sd_s: number | null
+          stride_sd_s: number | null
+          swing_left_pct_mean: number | null
+          swing_right_pct_mean: number | null
+          weight_kg: number | null
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string
+          dataset_id: string
+          double_support_pct_mean?: number | null
+          duration_s?: number | null
+          gait_speed_m_s?: number | null
+          group_name?: string | null
+          height_m?: number | null
+          id?: string
+          n_excluded?: number | null
+          n_strides?: number | null
+          note?: string | null
+          record_id: string
+          severity_measure?: string | null
+          severity_value?: number | null
+          sex?: string | null
+          stance_left_pct_mean?: number | null
+          stance_right_pct_mean?: number | null
+          status: string
+          stride_cv_pct?: number | null
+          stride_left_cv_pct?: number | null
+          stride_left_mean_s?: number | null
+          stride_left_sd_s?: number | null
+          stride_mean_s?: number | null
+          stride_right_cv_pct?: number | null
+          stride_right_mean_s?: number | null
+          stride_right_sd_s?: number | null
+          stride_sd_s?: number | null
+          swing_left_pct_mean?: number | null
+          swing_right_pct_mean?: number | null
+          weight_kg?: number | null
+        }
+        Update: {
+          age?: number | null
+          created_at?: string
+          dataset_id?: string
+          double_support_pct_mean?: number | null
+          duration_s?: number | null
+          gait_speed_m_s?: number | null
+          group_name?: string | null
+          height_m?: number | null
+          id?: string
+          n_excluded?: number | null
+          n_strides?: number | null
+          note?: string | null
+          record_id?: string
+          severity_measure?: string | null
+          severity_value?: number | null
+          sex?: string | null
+          stance_left_pct_mean?: number | null
+          stance_right_pct_mean?: number | null
+          status?: string
+          stride_cv_pct?: number | null
+          stride_left_cv_pct?: number | null
+          stride_left_mean_s?: number | null
+          stride_left_sd_s?: number | null
+          stride_mean_s?: number | null
+          stride_right_cv_pct?: number | null
+          stride_right_mean_s?: number | null
+          stride_right_sd_s?: number | null
+          stride_sd_s?: number | null
+          swing_left_pct_mean?: number | null
+          swing_right_pct_mean?: number | null
+          weight_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reference_timing_summaries_dataset_id_fkey"
+            columns: ["dataset_id"]
+            isOneToOne: false
+            referencedRelation: "reference_datasets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           age: number | null
