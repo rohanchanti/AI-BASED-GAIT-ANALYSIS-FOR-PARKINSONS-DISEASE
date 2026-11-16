@@ -3,6 +3,9 @@ import { GAITPDB_META } from "@/lib/gait-engine/gaitpdb";
 import { createFileRoute } from "@tanstack/react-router";
 import { ArrowDown, BookOpen, FlaskConical, Cpu, Waves } from "lucide-react";
 import { loadDataset, trainModel } from "@/lib/voice-model";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { combinedSummary, summarizeDataset, type GroupStat, type TimingRow } from "@/lib/reference-timing";
 
 export const Route = createFileRoute("/research")({
   head: () => ({
@@ -190,6 +193,86 @@ const PIPELINE_STAGES: { name: string; desc: string; note?: string }[] = [
   { name: "Report", desc: "Results can be organized into a structured analysis report." },
 ];
 
+const fmt = (v: number | null, d: number) => (v === null ? "Not available" : v.toFixed(d));
+
+function GroupTable({ groups }: { groups: GroupStat[] }) {
+  return (
+    <table className="mt-2 w-full text-xs">
+      <thead className="text-muted-foreground">
+        <tr><th className="text-left py-1">Group</th><th className="text-right">Records</th><th className="text-right">Mean stride time (s)</th><th className="text-right">Median stride-time CV (%)</th></tr>
+      </thead>
+      <tbody>
+        {groups.map((g) => (
+          <tr key={g.group} className="border-t border-white/10">
+            <td className="py-1">{g.group}</td><td className="text-right">{g.records}</td>
+            <td className="text-right">{fmt(g.meanStride, 3)}</td><td className="text-right">{fmt(g.medianCv, 2)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ReferenceTimingSummaries() {
+  const q = useQuery({
+    queryKey: ["reference-timing-summaries"],
+    queryFn: async () => {
+      const [ds, rows] = await Promise.all([
+        supabase.from("reference_datasets").select("id,name,version"),
+        supabase.from("reference_timing_summaries").select("dataset_id,record_id,group_name,stride_mean_s,stride_cv_pct,status,note"),
+      ]);
+      if (ds.error) throw ds.error;
+      if (rows.error) throw rows.error;
+      const all = (rows.data ?? []) as unknown as TimingRow[];
+      return (ds.data ?? [])
+        .map((d) => ({ ...d, label: `${d.name} v${d.version}`, rows: all.filter((r) => r.dataset_id === d.id) }))
+        .filter((d) => d.rows.length > 0);
+    },
+  });
+  const label = "Force-sensor reference data. Estimates from unfiltered source series. Not video data.";
+  return (
+    <div className="mt-4 glass rounded-2xl p-5 text-sm">
+      <div className="font-medium">Reference timing summaries</div>
+      <p className="mt-1 text-xs text-warning">{label}</p>
+      {q.isLoading && <p className="mt-2 text-xs text-muted-foreground">Loading reference summaries…</p>}
+      {q.isError && <p className="mt-2 text-xs text-muted-foreground">Reference summaries are available to signed-in researchers and admins only.</p>}
+      {q.data && q.data.length === 0 && <p className="mt-2 text-xs text-muted-foreground">No reference summaries are available for your account.</p>}
+      {q.data && q.data.length > 0 && (
+        <div className="mt-3 space-y-4">
+          {q.data.map((d) => {
+            const s = summarizeDataset(d.id, d.label, d.rows);
+            return (
+              <div key={d.id} className="rounded-xl border border-white/10 p-4">
+                <div className="font-medium">{d.label}</div>
+                <div className="mt-1 text-xs text-muted-foreground">Records: {s.records} · Rows with status "unreliable": {s.unreliable}</div>
+                <GroupTable groups={s.groups} />
+                {s.notes.length > 0 && (
+                  <details className="mt-2 text-xs">
+                    <summary className="cursor-pointer text-cyan">Data quality notes ({s.notes.length})</summary>
+                    <ul className="mt-1 list-disc pl-5 text-muted-foreground space-y-0.5">
+                      {s.notes.map((n, i) => <li key={i}><b>{n.record}:</b> {n.note}</li>)}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            );
+          })}
+          {(() => {
+            const c = combinedSummary(q.data.map((d) => ({ name: d.name, rows: d.rows })));
+            return (
+              <div className="rounded-xl border border-white/10 p-4">
+                <div className="font-medium">Combined (gaitdb excluded)</div>
+                <div className="mt-1 text-xs text-muted-foreground">Records: {c.records} · Rows with status "unreliable": {c.unreliable}</div>
+                <GroupTable groups={c.groups} />
+              </div>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReferenceDataSection() {
   const m = GAITPDB_META;
   return (
@@ -214,6 +297,7 @@ function ReferenceDataSection() {
           </ul>
         </div>
       </div>
+      <ReferenceTimingSummaries />
       <div className="mt-4 glass rounded-2xl p-5 text-sm">
         <div className="font-medium">Validation status of the video gait engine</div>
         <p className="mt-1 text-xs text-muted-foreground">
