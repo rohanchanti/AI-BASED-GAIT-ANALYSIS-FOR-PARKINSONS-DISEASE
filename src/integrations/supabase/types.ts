@@ -1056,6 +1056,57 @@ export type Database = {
           },
         ]
       }
+      reports_legacy_backup_20261121: {
+        Row: {
+          age: number | null
+          analysis_run_id: string | null
+          confidence: number | null
+          created_at: string | null
+          gender: string | null
+          id: string | null
+          kind: string | null
+          media_url: string | null
+          mode: string | null
+          parameters: Json | null
+          patient_name: string | null
+          probability: number | null
+          risk_level: string | null
+          user_id: string | null
+        }
+        Insert: {
+          age?: number | null
+          analysis_run_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          gender?: string | null
+          id?: string | null
+          kind?: string | null
+          media_url?: string | null
+          mode?: string | null
+          parameters?: Json | null
+          patient_name?: string | null
+          probability?: number | null
+          risk_level?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          age?: number | null
+          analysis_run_id?: string | null
+          confidence?: number | null
+          created_at?: string | null
+          gender?: string | null
+          id?: string | null
+          kind?: string | null
+          media_url?: string | null
+          mode?: string | null
+          parameters?: Json | null
+          patient_name?: string | null
+          probability?: number | null
+          risk_level?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       research_annotations: {
         Row: {
           created_at: string
