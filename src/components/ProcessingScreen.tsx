@@ -5,7 +5,7 @@ import { Activity, AlertTriangle, RotateCcw, X } from "lucide-react";
 import { analyzeVideoFile } from "@/lib/video-analyzer";
 import { runPoseGaitAnalysis } from "@/services/pose/gaitAnalysisService";
 import { persistPoseAnalysis, toStorable } from "@/lib/pose-session";
-import { analysisFromEngine, unavailableGaitAnalysis, generateMockAnalysis, type AnalysisResult } from "@/lib/mock-analysis";
+import { analysisFromEngine, unavailableGaitAnalysis, type AnalysisResult } from "@/lib/mock-analysis";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createAnalysisJob,
@@ -67,6 +67,11 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
   useEffect(() => {
     if (startedFor.current === attempt) return;
     startedFor.current = attempt;
+    if (kind !== "gait") {
+      setFailure({ message: "Facial analysis: not available yet", issues: [], retryable: false });
+      setPhase("failed");
+      return;
+    }
     const controller = new AbortController();
     ctrlRef.current = controller;
     const signal = controller.signal;
@@ -126,7 +131,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
         // ---------- Analysis ----------
         let result: AnalysisResult;
         const warnings: QualityIssue[] = [];
-        if (kind === "gait") {
+        {
           let lastBeat = 0;
           const beat = (stage: string, p: number) => {
             const now = Date.now();
@@ -205,13 +210,6 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
                 frames: serializeFrames(pose),
               },
             });
-        } else {
-          for (let i = 0; i <= 20; i++) {
-            if (signal.aborted) throw new UploadCancelled("Cancelled.");
-            setAnalysisPct(i / 20);
-            await new Promise((r) => setTimeout(r, 60));
-          }
-          result = generateMockAnalysis("facial", mode, file.name);
         }
         if (signal.aborted) throw new UploadCancelled("Cancelled.");
         setAnalysisPct(1);

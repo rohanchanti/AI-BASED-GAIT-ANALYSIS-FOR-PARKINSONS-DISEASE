@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { UploadCloud, Video } from "lucide-react";
+import { UploadCloud, Video, ScanFace } from "lucide-react";
 
 export type MediaKind = "gait" | "facial";
 export type DetectedFile = { file: File; kind: MediaKind; previewUrl: string };
@@ -9,17 +9,15 @@ interface Props {
 }
 
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/avi"];
-const IMAGE_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
 export function UploadZone({ onDetected }: Props) {
   const [dragging, setDragging] = useState(false);
 
   const handle = useCallback(
     (file: File) => {
-      const isImage = IMAGE_TYPES.includes(file.type);
       const isVideo = VIDEO_TYPES.includes(file.type) || file.name.match(/\.(mp4|mov|avi)$/i);
-      if (!isImage && !isVideo) return;
-      const kind: MediaKind = isImage ? "facial" : "gait";
+      if (!isVideo) return;
+      const kind: MediaKind = "gait";
       const previewUrl = URL.createObjectURL(file);
       onDetected({ file, kind, previewUrl });
     },
@@ -53,11 +51,10 @@ export function UploadZone({ onDetected }: Props) {
         </div>
 
         <h3 className="font-display text-2xl sm:text-3xl font-semibold">
-          Drop a walking or facial recording
+          Drop a walking recording
         </h3>
         <p className="mt-2 text-sm text-muted-foreground max-w-lg mx-auto">
-          Our AI auto-detects media type and routes to the correct analysis pipeline.
-          Supported: <span className="text-foreground/80">MP4, MOV, AVI, PNG, JPG</span>.
+          Supported: <span className="text-foreground/80">MP4, MOV, AVI</span>.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
@@ -66,7 +63,7 @@ export function UploadZone({ onDetected }: Props) {
             Choose file
             <input
               type="file"
-              accept="video/mp4,video/quicktime,video/avi,.avi,image/png,image/jpeg"
+              accept="video/mp4,video/quicktime,video/avi,.avi"
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];
@@ -84,6 +81,10 @@ export function UploadZone({ onDetected }: Props) {
               <div className="text-sm font-medium">Walking video</div>
               <div className="text-xs text-muted-foreground truncate">Gait, stride & pose analysis</div>
             </div>
+          </div>
+          <div aria-disabled="true" className="rounded-xl border border-border/60 p-3 flex items-center gap-3 text-muted-foreground opacity-60">
+            <ScanFace className="h-5 w-5 shrink-0" />
+            <div className="text-sm font-medium">Facial analysis: not available yet</div>
           </div>
         </div>
 
