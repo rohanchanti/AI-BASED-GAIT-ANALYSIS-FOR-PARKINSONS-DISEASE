@@ -6,7 +6,7 @@ import { withFeatureMethods } from "@/lib/analysis-storage";
 
 // Synthetic kinematics verify software behavior, not clinical accuracy.
 function ankleFrames(): PoseFrame[] {
-  return Array.from({ length: 360 }, (_, i) => {
+  return Array.from({ length: 480 }, (_, i) => {
     const timestamp = i / 30;
     const pelvisX = 0.3 + timestamp * 0.02;
     const landmarks = LANDMARK_NAMES.map((name) => ({

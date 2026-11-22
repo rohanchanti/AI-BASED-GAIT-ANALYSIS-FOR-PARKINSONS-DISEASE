@@ -1,4 +1,5 @@
 import type { PoseAnalysisFull } from "@/types/gait";
+import { computeGaitParameters } from "./parameters";
 import { FRAME_SCHEMA } from "./coordinates";
 import { ANALYSIS_VERSIONS } from "@/lib/analysis-version";
 import { LANDMARK_NAMES } from "@/types/pose";
@@ -42,6 +43,7 @@ export function qualitySummary(pose: PoseAnalysisFull) {
   const q = (p: number) => (conf.length ? +conf[Math.floor(p * (conf.length - 1))].toFixed(3) : null);
   const ev = pose.events ?? [];
   return {
+    intervalFiltering: computeGaitParameters({ events: ev }).qualitySummary.intervalFiltering,
     framesProcessed: fr.length,
     usableFrames: usable.length,
     usablePercent: fr.length ? +((100 * usable.length) / fr.length).toFixed(1) : 0,
