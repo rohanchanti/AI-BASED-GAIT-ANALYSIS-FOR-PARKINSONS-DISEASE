@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { validateSubjectFields } from "@/lib/subject-validation";
 import { subjectInformationSchema, ACQUISITION_CONSENT_VERSION } from "@/lib/subject-information";
 import { JOB_STATUS_COLUMNS, shouldCreateReanalysis, withFeatureMethods } from "@/lib/analysis-storage";
+import { parametersWithFrameRate } from "@/lib/gait-engine/frame-rate";
 import { VIDEO_LIMITS, ALLOWED_MIME, sniffContainer, canTransition, PROTOCOLS, SUCCESS_STATUSES, type JobStatus } from "@/lib/video-config";
 
 const BUCKET = "recordings";
@@ -270,7 +271,7 @@ export const saveJobResults = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: run, error } = await supabase.from("analysis_runs").select("id, recording_id, status").eq("id", data.runId).single();
+    const { data: run, error } = await supabase.from("analysis_runs").select("id, recording_id, status, parameters").eq("id", data.runId).single();
     if (error || !run) throw new Error("Job not found.");
     if (run.status !== "processing" && run.status !== "running") throw new Error(`Job is ${run.status}; results not saved.`);
     const blockingIssues = (data.qualityReport?.issues ?? []).filter((issue: { severity?: string }) => issue.severity === "blocking");
@@ -280,7 +281,7 @@ export const saveJobResults = createServerFn({ method: "POST" })
       ? blockingIssues.map((issue: { message?: string }) => issue.message).filter(Boolean).join(" ").slice(0, 1000) || data.error || "Recording did not meet minimum data quality."
       : data.error ?? null;
     const now = new Date().toISOString();
-    await supabase
+    const { error: recordingError } = await supabase
       .from("recordings")
       .update({
         duration_sec: data.video.durationSec,
@@ -291,6 +292,7 @@ export const saveJobResults = createServerFn({ method: "POST" })
         processing_status: finalStatus === "failed" || needsBetterVideo ? "failed" : "complete",
       })
       .eq("id", run.recording_id);
+    if (recordingError) throw new Error(recordingError.message);
     if ((finalStatus === "completed" || finalStatus === "completed_with_warnings") && data.result) {
       const { error: ge } = await supabase.from("gait_results").insert({
         owner_id: userId,
@@ -317,6 +319,8 @@ export const saveJobResults = createServerFn({ method: "POST" })
         progress: 1,
         quality_report: data.qualityReport,
         quality_metrics: data.pose?.quality ?? data.qualityReport,
+        // The gait-results trigger writes the feature array first; retain it with frame-rate provenance.
+        parameters: parametersWithFrameRate(data.engine?.parameters ?? data.result?.parameters ?? run.parameters, data.video.fps) as import("@/integrations/supabase/types").Json,
         error_message: rejectionReason,
         completed_at: now,
         heartbeat_at: now,

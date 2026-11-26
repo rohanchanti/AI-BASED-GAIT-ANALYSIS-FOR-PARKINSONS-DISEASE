@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Measure pose timestamp FPS, persist recording/run provenance, and gate timing reliability; 68 regression tests pass and a browser-decoded 30 fps clock measures 30.0003 fps. Interval filtering unchanged. Fresh authenticated analysis/database read-back not exercised.
+
 - [x] Remove simulated facial processing and disable facial uploads; 45 regression tests pass, image selection does not start processing, gait videos still open the existing form, and desktop/mobile browser checks pass. Gait pipeline unchanged.
 - [x] Confirm the requested account's admin role and show its saved user_roles row using a read-only query.
 

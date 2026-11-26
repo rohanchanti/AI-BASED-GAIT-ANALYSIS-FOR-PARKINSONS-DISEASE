@@ -19,8 +19,9 @@ import {
 } from "@/lib/jobs.functions";
 import { uploadWithRetry, assessRecording, UploadCancelled } from "@/lib/job-runner";
 import { protocolById, STATUS_LABEL, type QualityIssue } from "@/lib/video-config";
-import { computeGaitParameters, EVENT_METHOD } from "@/lib/gait-engine/parameters";
-import { serializeFrames, qualitySummary } from "@/lib/gait-engine/frames";
+import { EVENT_METHOD } from "@/lib/gait-engine/parameters";
+import { serializeFrames, qualitySummary, computePoseGaitParameters } from "@/lib/gait-engine/frames";
+import { measureFrameRate } from "@/lib/gait-engine/frame-rate";
 
 export interface JobRequest {
   /** Create a new server job (first submission). */
@@ -177,7 +178,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           const assessment = assessRecording(pose, protocol);
           const store = toStorable(pose);
           const posePayload = JSON.parse(JSON.stringify({ metrics: store.metrics, quality: store.quality, validation: store.validation, events: (store.events ?? []).slice(0, 2000) }));
-          const video = { durationSec: pose.video.durationSec, width: pose.video.width, height: pose.video.height, fps: null };
+          const video = { durationSec: pose.video.durationSec, width: pose.video.width, height: pose.video.height, fps: measureFrameRate(pose.frames.map((frame) => frame.timestamp)).fps };
           const qualityReport = JSON.parse(JSON.stringify({ status: assessment.status, issues: assessment.issues, input: assessment.input }));
           if (assessment.status === "fail") {
             persistPoseAnalysis(null);
@@ -189,7 +190,7 @@ export function ProcessingScreen({ kind, mode, file, subjectHeightMeters, job, o
           }
           persistPoseAnalysis(pose);
           const engine = {
-            ...computeGaitParameters({ events: pose.events, walkingDistanceM: job?.create?.walkingDistanceM ?? null, durationSec: pose.video.durationSec, calibration: pose.calibration }),
+            ...computePoseGaitParameters(pose, { walkingDistanceM: job?.create?.walkingDistanceM ?? null, durationSec: pose.video.durationSec, calibration: pose.calibration }),
             quality: qualitySummary(pose),
             eventMethod: EVENT_METHOD,
           };

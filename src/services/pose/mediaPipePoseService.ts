@@ -126,6 +126,29 @@ export interface FrameExtractionResult {
   info: VideoInfo;
 }
 
+/** Decoder presentation timestamp, never the requested seek position. Missing support stays unknown. */
+export async function seekPoseTimestamp(video: HTMLVideoElement, target: number): Promise<number> {
+  if (typeof video.requestVideoFrameCallback !== "function") {
+    await seekTo(video, target);
+    return NaN;
+  }
+  let callbackId = 0;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const presented = new Promise<number>((resolve) => {
+    callbackId = video.requestVideoFrameCallback((_now, metadata) => {
+      resolve(metadata.mediaTime);
+    });
+    timeoutId = setTimeout(() => resolve(NaN), 2000);
+  });
+  try {
+    await seekTo(video, target);
+    return await presented;
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+    video.cancelVideoFrameCallback(callbackId);
+  }
+}
+
 /**
  * Decodes the video at `sampleFps` and extracts pose landmarks per frame.
  * When multiple people are detected, the largest (closest) subject is used
@@ -145,11 +168,12 @@ export async function extractPoseFrames(
     for (let i = 0; i < total; i++) {
       if (opts.signal?.aborted) throw new Error("aborted");
       const t = Math.min(info.durationSec - 0.001, i / sampleFps);
-      await seekTo(video, t);
+      const timestamp = await seekPoseTimestamp(video, t);
       let landmarks: PoseFrame["landmarks"] = null;
       let people = 0;
       try {
-        const res = landmarker.detectForVideo(video, Math.round(t * 1000) + i);
+        // Inference can proceed without presentation metadata, but gait timing retains NaN and fails its gate.
+        const res = landmarker.detectForVideo(video, (Number.isFinite(timestamp) ? timestamp : video.currentTime) * 1000);
         const sets = res.landmarks ?? [];
         people = sets.length;
         if (sets.length > 0) {
@@ -160,7 +184,7 @@ export async function extractPoseFrames(
       } catch {
         landmarks = null;
       }
-      frames.push({ frameNumber: i, timestamp: t, landmarks, peopleDetected: people });
+      frames.push({ frameNumber: i, timestamp, landmarks, peopleDetected: people });
       opts.onProgress?.((i + 1) / total);
       if ((i & 3) === 0) await new Promise((r) => setTimeout(r, 0));
     }

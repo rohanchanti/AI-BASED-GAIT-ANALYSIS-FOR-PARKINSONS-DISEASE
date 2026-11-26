@@ -9,6 +9,7 @@ import { evaluateQuality, checkProtocol, type Protocol, type QualityInput } from
 import { DEFAULT_POSE_CONFIG } from "@/services/pose/poseConfig";
 import { indexLandmarks, reliable } from "@/services/pose/poseLandmarkUtils";
 import { bodyVisibilityScore } from "@/services/pose/qualityService";
+import { measureFrameRate } from "@/lib/gait-engine/frame-rate";
 
 export class UploadCancelled extends Error {}
 
@@ -81,7 +82,7 @@ export function qualityInputFromPose(pose: PoseAnalysisFull, minConf = DEFAULT_P
   const q = pose.quality;
   return {
     durationSec: pose.video?.durationSec ?? 0,
-    fps: null, // native frame rate is not exposed by browser decoders
+    fps: null, // Native capture rate is unknown; pose sampling rate has its own timestamp reliability gate.
     totalFrames: frames.length,
     framesWithPose: withPose.length,
     multiPersonFrames: frames.filter((f) => (f.peopleDetected ?? 0) > 1).length,
@@ -98,6 +99,8 @@ export function qualityInputFromPose(pose: PoseAnalysisFull, minConf = DEFAULT_P
 export function assessRecording(pose: PoseAnalysisFull, protocol: Protocol) {
   const qi = qualityInputFromPose(pose);
   const gate = evaluateQuality(qi);
+  const frameRate = measureFrameRate(pose.frames.map((frame) => frame.timestamp));
+  if (frameRate.reason) gate.issues.push({ code: "frame_rate", severity: "warning", message: frameRate.reason, advice: "Use a recording with regular frame timestamps." });
   // Existing pipeline blocking validation also counts.
   const blocking = (pose.validation?.blocking ?? []) as string[];
   for (const b of blocking)

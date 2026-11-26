@@ -28,3 +28,4 @@
 - Reference datasets, files, coded subjects and extracted features use separate reference tables linked by dataset_id and the existing security-definer has_role function for RLS. Why: force-sensor reference evidence must remain separate from patient video analyses and use centrally managed roles.
 
 - Gait timing filters per-foot step/stride intervals before statistics and exposes filter provenance in engine and quality summaries; derived statuses inherit the weakest input. Why: missed or doubled contacts must not produce falsely reliable timing outputs.
+- Pose timing reliability uses consecutive video-clock timestamps, not configured sampling FPS; run parameters retain feature snapshots with measured FPS/source. Why: irregular sampling must not yield reliable timing or lose provenance.
